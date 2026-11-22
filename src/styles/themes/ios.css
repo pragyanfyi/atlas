@@ -1,0 +1,94 @@
+/*
+ * Atlas theme: iOS (default)
+ *
+ * Colours are Apple's system colours (UIColor.systemBlue and friends),
+ * with the light and dark variants iOS itself uses. Only colour and radius
+ * are themed. Fonts and layout are left to Fumadocs.
+ *
+ * Activated by <html data-platform="ios">. A sibling file (material.css)
+ * will define the same tokens under data-platform="material".
+ */
+
+/* 1. Raw platform palette (private to this theme) --------------------- */
+:root[data-platform="ios"] {
+  --ios-blue: rgb(0 122 255);
+  --ios-red: rgb(255 59 48);
+  --ios-green: rgb(52 199 89);
+  --ios-orange: rgb(255 149 0);
+  --ios-yellow: rgb(255 204 0);
+
+  --ios-label: rgb(0 0 0);
+  --ios-label-secondary: rgb(60 60 67 / 0.6);
+  --ios-bg-grouped: rgb(242 242 247); /* systemGroupedBackground */
+  --ios-bg-elevated: rgb(255 255 255); /* secondarySystemGroupedBackground */
+  --ios-bg-popover: rgb(255 255 255);
+  --ios-separator: rgb(60 60 67 / 0.29);
+  --ios-fill: rgb(120 120 128 / 0.2); /* systemFill */
+  --ios-fill-secondary: rgb(120 120 128 / 0.16);
+  --ios-fill-tertiary: rgb(118 118 128 / 0.12);
+
+  color-scheme: light;
+}
+
+:root[data-platform="ios"].dark {
+  --ios-blue: rgb(10 132 255);
+  --ios-red: rgb(255 69 58);
+  --ios-green: rgb(48 209 88);
+  --ios-orange: rgb(255 159 10);
+  --ios-yellow: rgb(255 214 10);
+
+  --ios-label: rgb(255 255 255);
+  --ios-label-secondary: rgb(235 235 245 / 0.6);
+  --ios-bg-grouped: rgb(0 0 0);
+  --ios-bg-elevated: rgb(28 28 30); /* secondarySystemGroupedBackground */
+  --ios-bg-popover: rgb(44 44 46);
+  --ios-separator: rgb(84 84 88 / 0.6);
+  --ios-fill: rgb(120 120 128 / 0.36);
+  --ios-fill-secondary: rgb(120 120 128 / 0.32);
+  --ios-fill-tertiary: rgb(118 118 128 / 0.24);
+
+  color-scheme: dark;
+}
+
+/* 2. Map the palette onto Fumadocs tokens (same for light and dark) --- */
+:root[data-platform="ios"],
+:root[data-platform="ios"].dark {
+  --color-fd-background: var(--ios-bg-grouped);
+  --color-fd-foreground: var(--ios-label);
+  --color-fd-muted: var(--ios-fill-tertiary);
+  --color-fd-muted-foreground: var(--ios-label-secondary);
+  --color-fd-popover: var(--ios-bg-popover);
+  --color-fd-popover-foreground: var(--ios-label);
+  --color-fd-card: var(--ios-bg-elevated);
+  --color-fd-card-foreground: var(--ios-label);
+  --color-fd-border: var(--ios-separator);
+  --color-fd-primary: var(--ios-blue);
+  --color-fd-primary-foreground: rgb(255 255 255);
+  --color-fd-secondary: var(--ios-fill-secondary);
+  --color-fd-secondary-foreground: var(--ios-label);
+  --color-fd-accent: var(--ios-fill);
+  --color-fd-accent-foreground: var(--ios-label);
+  --color-fd-ring: var(--ios-blue);
+
+  /* Semantic: callouts, alerts, diffs */
+  --color-fd-info: var(--ios-blue);
+  --color-fd-warning: var(--ios-orange);
+  --color-fd-error: var(--ios-red);
+  --color-fd-success: var(--ios-green);
+  --color-fd-idea: var(--ios-yellow);
+
+  /* Radius: iOS-style corners (Tailwind rounded-* utilities) */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 22px;
+}
+
+/* neutral.css re-tints the sidebar in dark mode via an #id selector */
+:root[data-platform="ios"].dark #nd-sidebar {
+  --color-fd-muted: var(--ios-fill-tertiary);
+  --color-fd-secondary: var(--ios-fill-secondary);
+  --color-fd-muted-foreground: var(--ios-label-secondary);
+}
