@@ -1,0 +1,22 @@
+name: Content issue
+description: A page is inaccurate, outdated or unclear
+labels: [content]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Page
+      description: URL or path of the page
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Source or suggested fix
+      description: Link to official docs or source code if you have one.

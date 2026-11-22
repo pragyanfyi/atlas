@@ -1,0 +1,27 @@
+name: Topic suggestion
+description: Propose a new page or section for the guide
+labels: [enhancement, content]
+body:
+  - type: input
+    id: topic
+    attributes:
+      label: Topic
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why does it belong in Atlas?
+      description: Who is it for, and what will they understand afterwards?
+    validations:
+      required: true
+  - type: textarea
+    id: outline
+    attributes:
+      label: Rough outline or references
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I'm willing to write or help write this
