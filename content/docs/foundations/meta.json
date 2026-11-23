@@ -1,0 +1,14 @@
+{
+  "title": "Foundations",
+  "icon": "Layers",
+  "pages": [
+    "index",
+    "what-is-react-native",
+    "threads",
+    "javascript-engine",
+    "host-components",
+    "layout",
+    "metro-and-the-bundle",
+    "native-code"
+  ]
+}
