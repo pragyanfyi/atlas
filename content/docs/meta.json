@@ -5,6 +5,7 @@
     "history",
     "new-architecture",
     "expo",
-    "rendering-and-state"
+    "rendering-and-state",
+    "data"
   ]
 }
