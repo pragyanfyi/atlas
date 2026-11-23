@@ -6,6 +6,7 @@
     "new-architecture",
     "expo",
     "rendering-and-state",
-    "data"
+    "data",
+    "native-ui"
   ]
 }
