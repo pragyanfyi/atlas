@@ -1,0 +1,14 @@
+{
+  "title": "New Architecture",
+  "icon": "Cpu",
+  "pages": [
+    "index",
+    "jsi",
+    "fabric",
+    "turbomodules",
+    "codegen",
+    "bridgeless",
+    "concurrent-features",
+    "interop-layers"
+  ]
+}
