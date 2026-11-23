@@ -1,0 +1,12 @@
+{
+  "title": "Shipping",
+  "icon": "Rocket",
+  "pages": [
+    "index",
+    "measuring-performance",
+    "app-startup",
+    "debugging",
+    "versions-in-the-wild",
+    "upgrading"
+  ]
+}
