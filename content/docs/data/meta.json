@@ -1,0 +1,11 @@
+{
+  "title": "Data",
+  "icon": "Database",
+  "pages": [
+    "index",
+    "storage",
+    "fetching-and-caching",
+    "offline-and-sync",
+    "background-work"
+  ]
+}
