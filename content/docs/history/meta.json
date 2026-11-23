@@ -1,0 +1,12 @@
+{
+  "title": "History",
+  "icon": "Hourglass",
+  "pages": [
+    "index",
+    "the-bridge",
+    "paper-renderer",
+    "legacy-native-modules",
+    "why-it-was-rebuilt",
+    "timeline"
+  ]
+}
