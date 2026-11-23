@@ -1,0 +1,15 @@
+{
+  "title": "Rendering & State",
+  "icon": "RefreshCw",
+  "pages": [
+    "index",
+    "render-cost",
+    "where-state-lives",
+    "context",
+    "react-compiler",
+    "lists",
+    "animations",
+    "gestures",
+    "keyboard"
+  ]
+}

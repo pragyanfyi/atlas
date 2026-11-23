@@ -1,3 +1,10 @@
 {
-  "pages": ["index", "foundations", "history", "new-architecture", "expo"]
+  "pages": [
+    "index",
+    "foundations",
+    "history",
+    "new-architecture",
+    "expo",
+    "rendering-and-state"
+  ]
 }
