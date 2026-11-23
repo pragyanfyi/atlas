@@ -1,0 +1,14 @@
+{
+  "title": "Expo",
+  "icon": "Package",
+  "pages": [
+    "index",
+    "expo-go-and-development-builds",
+    "continuous-native-generation",
+    "config-plugins",
+    "expo-modules-api",
+    "expo-router",
+    "eas-build-and-submit",
+    "eas-update"
+  ]
+}
