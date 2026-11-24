@@ -1,0 +1,127 @@
+/*
+ * Home page: the exploded phone, plus the small motion pieces below it.
+ *
+ * Everything here is CSS-only so the home page stays a server component.
+ * Platform-specific bits key off <html data-platform>.
+ */
+
+/* Stage --------------------------------------------------------------- */
+/*
+ * One tilted plane (bottom-right corner toward the viewer). Layers are
+ * offset inside it by (-a, +b) per step, which lands each one below and to
+ * the left of the last without overlapping. Orthographic on purpose: plain
+ * trig places the labels and sizes the stage, so change a, b, rx or rz and
+ * everything else follows.
+ *
+ * A local vector (x, y) lands on screen at
+ *   X = x cos(rz) - y sin(rz),   Y = (x sin(rz) + y cos(rz)) cos(rx)
+ */
+.xp-stage {
+  --w: 232px;
+  --h: 480px;
+  --rx: 54deg;
+  --rz: -36deg;
+  --a: 262px;
+  --b: 96px;
+  --pad: 32px;
+  --label-w: 150px;
+  --z: 0.86;
+
+  /* One step on screen (sx < 0: left, sy > 0: down) */
+  --sx: calc(-1 * var(--a) * cos(var(--rz)) - var(--b) * sin(var(--rz)));
+  --sy: calc(
+    (-1 * var(--a) * sin(var(--rz)) + var(--b) * cos(var(--rz))) *
+    cos(var(--rx))
+  );
+  /* Half extents of one layer, and its right-most corner (w/2, h/2) */
+  --hx: calc(var(--w) / 2 * cos(var(--rz)) - var(--h) / 2 * sin(var(--rz)));
+  --hy: calc(
+    (-1 * var(--w) / 2 * sin(var(--rz)) + var(--h) / 2 * cos(var(--rz))) *
+    cos(var(--rx))
+  );
+  --corner-y: calc(
+    (var(--w) / 2 * sin(var(--rz)) + var(--h) / 2 * cos(var(--rz))) *
+    cos(var(--rx))
+  );
+  /* Centre of the screen layer (k = 0) */
+  --cx: calc(var(--pad) + var(--hx) - 4 * var(--sx));
+  --cy: calc(var(--pad) + var(--hy));
+
+  --accent: var(--color-fd-primary);
+  --update: var(--color-fd-success);
+  --line: var(--color-fd-border);
+  --surface: var(--color-fd-card);
+  --ink: var(--color-fd-foreground);
+  --muted: var(--color-fd-muted-foreground);
+  --tap-x: 116px;
+  --tap-y: 412px;
+  --cycle: 12s;
+  --start: 2s;
+
+  position: relative;
+  flex: none;
+  zoom: var(--z);
+  width: calc(var(--cx) + var(--hx) + 28px + var(--label-w));
+  height: calc(var(--cy) + 4 * var(--sy) + var(--hy) + var(--pad));
+}
+
+:root[data-platform="material"] .xp-stage {
+  --tap-x: 164px;
+}
+
+.xp-plane {
+  position: absolute;
+  left: calc(var(--cx) - var(--w) / 2);
+  top: calc(var(--cy) - var(--h) / 2);
+  width: var(--w);
+  height: var(--h);
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rx)) rotateZ(var(--rz));
+}
+
+/* Layers -------------------------------------------------------------- */
+.xp-layer {
+  position: absolute;
+  inset: 0;
+  translate: calc(-1 * var(--k) * var(--a)) calc(var(--k) * var(--b));
+  animation: xp-explode 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s both;
+}
+
+.xp-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 38px;
+  border: 1px dashed color-mix(in oklab, var(--ink) 22%, transparent);
+  background: var(--surface);
+  box-shadow: 0 50px 70px -40px rgb(0 0 0 / 0.35);
+}
+
+.xp-layer[data-layer="host"] .xp-face {
+  border: 6px solid color-mix(in oklab, var(--ink) 88%, transparent);
+}
+
+/* Labels: flat, in a column right of the screen, each joined by a leader
+   line to its layer's right-most corner */
+.xp-label {
+  position: absolute;
+  left: calc(var(--cx) + var(--k) * var(--sx) + var(--hx) + 6px);
+  top: calc(var(--cy) + var(--k) * var(--sy) + var(--corner-y));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--muted);
+  translate: 0 -50%;
+  animation:
+    xp-fade 0.6s ease-out calc(1.2s + var(--k) * 0.08s) both,
+    var(--lbl) var(--cycle) ease var(--start) infinite;
+}
+
+.xp-label-line {
+  width: calc(22px - var(--k) * var(--sx));
+  height: 1px;
+  background: color-mix(in oklab, var(--ink) 18%, transparent);
+}
