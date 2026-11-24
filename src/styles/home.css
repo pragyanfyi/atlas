@@ -1348,6 +1348,88 @@
   animation-name: xp-token-out;
 }
 
+@keyframes xp-token-in {
+  0%,
+  23.9% {
+    translate: 0 0;
+    opacity: 1;
+    color: var(--muted);
+    border-color: color-mix(in oklab, var(--ink) 25%, transparent);
+    box-shadow: 0 0 0 transparent;
+  }
+  24% {
+    translate: 0 0;
+    color: var(--c);
+    border-color: var(--c);
+    box-shadow: 0 0 12px color-mix(in oklab, var(--c) 45%, transparent);
+  }
+  28%,
+  30% {
+    translate: 126px 0;
+    opacity: 1;
+    color: var(--c);
+    border-color: var(--c);
+    box-shadow: 0 0 12px color-mix(in oklab, var(--c) 45%, transparent);
+  }
+  32% {
+    translate: 126px 0;
+    opacity: 0;
+  }
+  33% {
+    translate: 0 0;
+    opacity: 0;
+  }
+  36%,
+  100% {
+    translate: 0 0;
+    opacity: 1;
+    color: var(--muted);
+    border-color: color-mix(in oklab, var(--ink) 25%, transparent);
+    box-shadow: 0 0 0 transparent;
+  }
+}
+
+@keyframes xp-token-out {
+  0%,
+  61.9% {
+    translate: 0 0;
+    opacity: 1;
+    color: var(--muted);
+    border-color: color-mix(in oklab, var(--ink) 25%, transparent);
+    box-shadow: 0 0 0 transparent;
+  }
+  62% {
+    translate: 0 0;
+    color: var(--c);
+    border-color: var(--c);
+    box-shadow: 0 0 12px color-mix(in oklab, var(--c) 45%, transparent);
+  }
+  65%,
+  67% {
+    translate: -116px 0;
+    opacity: 1;
+    color: var(--c);
+    border-color: var(--c);
+    box-shadow: 0 0 12px color-mix(in oklab, var(--c) 45%, transparent);
+  }
+  69% {
+    translate: -116px 0;
+    opacity: 0;
+  }
+  70% {
+    translate: 0 0;
+    opacity: 0;
+  }
+  73%,
+  100% {
+    translate: 0 0;
+    opacity: 1;
+    color: var(--muted);
+    border-color: color-mix(in oklab, var(--ink) 25%, transparent);
+    box-shadow: 0 0 0 transparent;
+  }
+}
+
 /* Hermes: frames push onto the stack, a program counter steps -------- */
 .xp-hermes {
   position: absolute;
@@ -1404,6 +1486,75 @@
   animation-name: xp-frame-render;
 }
 
+@keyframes xp-frame-0 {
+  0%,
+  32.9% {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+  33.5%,
+  40.5% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  42%,
+  100% {
+    opacity: 0;
+    translate: 0 0;
+  }
+}
+@keyframes xp-frame-1 {
+  0%,
+  34.7% {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+  35.3%,
+  40% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  41.5%,
+  100% {
+    opacity: 0;
+    translate: 0 0;
+  }
+}
+@keyframes xp-frame-2 {
+  0%,
+  38.3% {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+  38.9%,
+  39.5% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  41%,
+  100% {
+    opacity: 0;
+    translate: 0 0;
+  }
+}
+@keyframes xp-frame-render {
+  0%,
+  53.9% {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+  54.5%,
+  61% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  62.5%,
+  100% {
+    opacity: 0;
+    translate: 0 0;
+  }
+}
+
 .xp-bytecode {
   position: absolute;
   top: 190px;
@@ -1437,6 +1588,45 @@
   box-shadow: inset 2px 0 0 var(--accent);
   animation-name: xp-pc;
   animation-timing-function: step-end;
+}
+
+/* Lines 0–3 on the way in; "Ret" (line 4) as the update leaves */
+@keyframes xp-pc {
+  0%,
+  32.9% {
+    opacity: 0;
+    translate: 0 0;
+  }
+  33% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  34.8% {
+    translate: 0 20px;
+  }
+  36.6% {
+    translate: 0 40px;
+  }
+  38.4% {
+    translate: 0 60px;
+  }
+  41% {
+    opacity: 0;
+    translate: 0 60px;
+  }
+  59.3% {
+    opacity: 1;
+    translate: 0 80px;
+    background: color-mix(in oklab, var(--update) 18%, transparent);
+    box-shadow: inset 2px 0 0 var(--update);
+  }
+  62%,
+  100% {
+    opacity: 0;
+    translate: 0 80px;
+    background: color-mix(in oklab, var(--update) 18%, transparent);
+    box-shadow: inset 2px 0 0 var(--update);
+  }
 }
 
 /* Your code: onPress runs, the state flips, the render reads it ------ */
@@ -1506,6 +1696,45 @@
   animation-name: xp-hl-render;
 }
 
+@keyframes xp-hl-press {
+  0%,
+  44.9%,
+  51%,
+  100% {
+    opacity: 0;
+  }
+  45%,
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes xp-hl-state {
+  0%,
+  49.9%,
+  56%,
+  100% {
+    opacity: 0;
+  }
+  50%,
+  55% {
+    opacity: 1;
+  }
+}
+
+@keyframes xp-hl-render {
+  0%,
+  53.9%,
+  59%,
+  100% {
+    opacity: 0;
+  }
+  54%,
+  58% {
+    opacity: 1;
+  }
+}
+
 .xp-state {
   display: inline-grid;
 }
@@ -1522,4 +1751,35 @@
 .xp-stage .xp-state-true {
   animation-name: xp-state-true;
   animation-timing-function: step-end;
+}
+
+/* Flips at 52%, flips back with the screen at the end of the cycle */
+@keyframes xp-state-false {
+  0%,
+  51.9% {
+    opacity: 1;
+  }
+  52%,
+  96.5% {
+    opacity: 0;
+  }
+  98%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes xp-state-true {
+  0%,
+  51.9% {
+    opacity: 0;
+  }
+  52%,
+  96.5% {
+    opacity: 1;
+  }
+  98%,
+  100% {
+    opacity: 0;
+  }
 }
