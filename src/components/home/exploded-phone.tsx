@@ -3,11 +3,21 @@ import { cn } from "@/lib/cn";
 
 /**
  * The home hero: a phone taken apart into the layers React Native runs on,
- * cascading from the screen (top right) down to your code (bottom left).
+ * cascading from the screen (top right) down to your code (bottom left),
+ * with one tap played through the whole stack.
  *
  * Pure CSS 3D (styles in src/styles/home.css), so it renders on the server.
  * All layers share one tilted plane and are offset inside it, so they never
- * cover each other.
+ * cover each other. Every moving part shares one timeline (--cycle):
+ *
+ *   0–8%    the button is pressed on screen
+ *   12–20%  Fabric hit-tests the shadow tree and finds the Pressable
+ *   24–29%  JSI calls the JS handler directly from C++
+ *   33–41%  Hermes runs the bytecode, frames push onto the stack
+ *   45–56%  onPress runs, setLiked(true) flips the state
+ *   56–66%  React re-renders; JSI calls back into C++ (cloneNode)
+ *   66–76%  Fabric clones the changed path, Yoga re-lays out the Text
+ *   82–96%  the screen shows "Liked", then everything resets
  *
  * The screen follows the platform switch (<html data-platform>) through
  * CSS alone: `.xp-ios` and `.xp-android` nodes are shown or hidden.
@@ -39,7 +49,7 @@ export function ExplodedPhone({ className }: { className?: string }) {
     <div
       className={cn("xp-stage", className)}
       role="img"
-      aria-label="A phone taken apart into five layers: host views, Fabric, JSI, Hermes and your code."
+      aria-label="A phone taken apart into five layers: host views, Fabric, JSI, Hermes and your code. A tap on a Like button travels through each layer to your code, and the update travels back until the button reads Liked."
     >
       <div className="xp-plane">
         {layers.map((layer) => {
@@ -54,9 +64,17 @@ export function ExplodedPhone({ className }: { className?: string }) {
               <div className="xp-face">
                 <Face />
               </div>
+              <i className="xp-hit" aria-hidden />
             </div>
           );
         })}
+        <i className="xp-beam" aria-hidden />
+        <i className="xp-packet is-event" aria-hidden />
+        <i className="xp-packet is-event is-trail" aria-hidden />
+        <i className="xp-packet is-event is-trail-2" aria-hidden />
+        <i className="xp-packet is-update" aria-hidden />
+        <i className="xp-packet is-update is-trail" aria-hidden />
+        <i className="xp-packet is-update is-trail-2" aria-hidden />
       </div>
       {/* Labels sit outside the 3D plane, in one column on the right */}
       {layers.map((layer) => (
