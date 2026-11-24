@@ -77,6 +77,10 @@ export function ExplodedPhone({ className }: { className?: string }) {
                   pathLength="100"
                 />
               </svg>
+              <span className="xp-heading" aria-hidden>
+                {layer.title}
+                <span className="xp-heading-glow">{layer.title}</span>
+              </span>
             </div>
           );
         })}
