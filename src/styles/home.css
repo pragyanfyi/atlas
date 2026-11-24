@@ -5,6 +5,28 @@
  * Platform-specific bits key off <html data-platform>.
  */
 
+/* Backdrop ------------------------------------------------------------ */
+.home-grid {
+  background-image: radial-gradient(
+    var(--color-fd-border) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+  mask-image: radial-gradient(
+    ellipse 70% 70% at 50% 50%,
+    #000 20%,
+    transparent 75%
+  );
+}
+
+.home-glow {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--color-fd-primary) 16%, transparent),
+    transparent
+  );
+}
+
 /* Platform-only nodes ------------------------------------------------- */
 :root[data-platform="material"] .xp-ios,
 :root:not([data-platform="material"]) .xp-android {

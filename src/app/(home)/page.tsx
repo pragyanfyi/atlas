@@ -1,6 +1,13 @@
-import { ArrowRight, Blocks, Cpu, Gauge, Package } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Blocks,
+  Cpu,
+  Gauge,
+  Package,
+} from "lucide-react";
 import Link from "next/link";
-import { ArchitectureDiagram } from "@/components/architecture-diagram";
+import { ExplodedPhone } from "@/components/home/exploded-phone";
 import { gitConfig } from "@/lib/shared";
 
 const topics = [
@@ -32,47 +39,53 @@ const path = [
   "Go deeper into the runtime",
 ];
 
+const repoUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
+
 export default function HomePage() {
   return (
     <div className="flex flex-1 flex-col">
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div aria-hidden className="hero-grid absolute inset-0 -z-10" />
-        <div className="mx-auto flex max-w-3xl flex-col items-center px-6 pt-24 pb-16 text-center md:pt-32">
-          <span className="mb-6 rounded-full bg-fd-secondary px-3 py-1 text-xs font-medium text-fd-muted-foreground">
-            Open source · Architecture-first
-          </span>
-          <h1 className="text-4xl font-semibold tracking-tight text-balance md:text-6xl">
-            Your map to the React Native ecosystem
-          </h1>
-          <p className="mt-5 max-w-xl text-lg text-fd-muted-foreground text-balance">
-            Understand how things work under the hood, explore the tools that
-            power modern mobile development, and design apps that scale.
-            Diagrams over code.
-          </p>
-          <div className="mt-8 flex items-center gap-3">
-            <Link
-              href="/docs"
-              className="inline-flex h-10 items-center gap-1.5 rounded-full bg-fd-primary px-5 text-sm font-medium text-fd-primary-foreground transition-opacity hover:opacity-90"
-            >
-              Start reading
-              <ArrowRight className="size-4" />
-            </Link>
-            <a
-              href={`https://github.com/${gitConfig.user}/${gitConfig.repo}`}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="inline-flex h-10 items-center rounded-full bg-fd-secondary px-5 text-sm font-medium transition-colors hover:bg-fd-accent"
-            >
-              GitHub
-            </a>
-          </div>
+      {/* Animation: the whole section, full width */}
+      <section className="relative overflow-hidden border-b">
+        <div aria-hidden className="home-grid absolute inset-0 -z-10" />
+        <div
+          aria-hidden
+          className="home-glow absolute top-1/2 left-1/2 -z-10 h-[600px] w-[1100px] -translate-1/2 opacity-60"
+        />
+        <div className="flex justify-center pt-10 pb-6 md:pt-14">
+          <ExplodedPhone />
         </div>
+      </section>
 
-        <div className="mx-auto max-w-3xl px-6 pb-24">
-          <div className="rounded-3xl border bg-fd-card/50 p-4 md:p-8">
-            <ArchitectureDiagram className="h-auto w-full" />
-          </div>
+      {/* Heading */}
+      <section className="mx-auto flex w-full max-w-3xl flex-col items-center px-6 pt-20 pb-24 text-center">
+        <p className="mb-6 font-mono text-xs tracking-wide text-fd-muted-foreground uppercase">
+          A field guide to React Native internals
+        </p>
+        <h1 className="text-5xl font-semibold tracking-tighter text-balance md:text-7xl">
+          React Native,{" "}
+          <span className="text-fd-muted-foreground">taken apart.</span>
+        </h1>
+        <p className="mt-6 max-w-xl text-lg/relaxed text-fd-muted-foreground text-pretty">
+          What happens between your components and the pixels on screen. Hermes,
+          JSI, Fabric, Expo and the rest, one concept at a time.
+        </p>
+        <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/docs"
+            className="group inline-flex h-10 items-center gap-1.5 rounded-full bg-fd-foreground px-5 text-sm font-medium text-fd-background transition-opacity hover:opacity-85"
+          >
+            Start reading
+            <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+          <a
+            href={repoUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-flex h-10 items-center gap-1.5 rounded-full border px-5 text-sm font-medium transition-colors hover:bg-fd-accent"
+          >
+            GitHub
+            <ArrowUpRight className="size-4 text-fd-muted-foreground" />
+          </a>
         </div>
       </section>
 
