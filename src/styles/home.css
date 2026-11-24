@@ -35,10 +35,12 @@
 
 /* Stage --------------------------------------------------------------- */
 /*
- * One tilted plane (bottom-right corner toward the viewer). Layers are
- * offset inside it by (-a, +b) per step, which lands each one below and to
- * the left of the last without overlapping. Orthographic on purpose: plain
- * trig places the labels and sizes the stage, so change a, b, rx or rz and
+ * One tilted plane: the screen's top-left corner is furthest away and its
+ * bottom-right corner is closest to the viewer. Layers are offset inside
+ * the plane by (-a, +b) per step (a is negative, so each step goes right
+ * along the short side), which lands each one below and to the right of
+ * the last without overlapping. Orthographic on purpose: plain trig sizes
+ * the stage and places the labels, so change a, b, rx or rz (0–90deg) and
  * everything else follows.
  *
  * A local vector (x, y) lands on screen at
@@ -47,32 +49,28 @@
 .xp-stage {
   --w: 232px;
   --h: 480px;
-  --rx: 54deg;
-  --rz: -36deg;
-  --a: 262px;
-  --b: 96px;
+  --rx: 60deg;
+  --rz: 36deg;
+  --a: -260px;
+  --b: 40px;
   --pad: 32px;
-  --label-w: 150px;
+  --label-h: 56px;
   --z: 0.86;
 
-  /* One step on screen (sx < 0: left, sy > 0: down) */
+  /* One step on screen (sx > 0: right, sy > 0: down) */
   --sx: calc(-1 * var(--a) * cos(var(--rz)) - var(--b) * sin(var(--rz)));
   --sy: calc(
     (-1 * var(--a) * sin(var(--rz)) + var(--b) * cos(var(--rz))) *
     cos(var(--rx))
   );
-  /* Half extents of one layer, and its right-most corner (w/2, h/2) */
-  --hx: calc(var(--w) / 2 * cos(var(--rz)) - var(--h) / 2 * sin(var(--rz)));
+  /* Half extents of one tilted layer */
+  --hx: calc(var(--w) / 2 * cos(var(--rz)) + var(--h) / 2 * sin(var(--rz)));
   --hy: calc(
-    (-1 * var(--w) / 2 * sin(var(--rz)) + var(--h) / 2 * cos(var(--rz))) *
-    cos(var(--rx))
-  );
-  --corner-y: calc(
     (var(--w) / 2 * sin(var(--rz)) + var(--h) / 2 * cos(var(--rz))) *
     cos(var(--rx))
   );
-  /* Centre of the screen layer (k = 0) */
-  --cx: calc(var(--pad) + var(--hx) - 4 * var(--sx));
+  /* Centre of the screen layer (k = 0), top left */
+  --cx: calc(var(--pad) + var(--hx));
   --cy: calc(var(--pad) + var(--hy));
 
   --accent: var(--color-fd-primary);
@@ -83,14 +81,15 @@
   --muted: var(--color-fd-muted-foreground);
   --tap-x: 116px;
   --tap-y: 412px;
+  --intro: 3.2s;
   --cycle: 12s;
-  --start: 2s;
+  --start: 3.8s;
 
   position: relative;
   flex: none;
   zoom: var(--z);
-  width: calc(var(--cx) + var(--hx) + 28px + var(--label-w));
-  height: calc(var(--cy) + 4 * var(--sy) + var(--hy) + var(--pad));
+  width: calc(2 * var(--cx) + 4 * var(--sx));
+  height: calc(2 * var(--cy) + 4 * var(--sy) + var(--label-h));
 }
 
 :root[data-platform="material"] .xp-stage {
@@ -98,6 +97,10 @@
 }
 
 .xp-plane {
+  /* How far the stage centre is from the screen layer's final spot */
+  --dx: calc(2 * var(--sx));
+  --dy: calc(2 * var(--sy) + var(--label-h) / 2);
+
   position: absolute;
   left: calc(var(--cx) - var(--w) / 2);
   top: calc(var(--cy) - var(--h) / 2);
@@ -105,20 +108,61 @@
   height: var(--h);
   transform-style: preserve-3d;
   transform: rotateX(var(--rx)) rotateZ(var(--rz));
+  animation: xp-tilt var(--intro) cubic-bezier(0.65, 0, 0.35, 1) 0.3s both;
+}
+
+/*
+ * Opening: one upright phone in the middle, it tilts back, the layers lift
+ * apart, then everything slides out to its place.
+ */
+@keyframes xp-tilt {
+  0%,
+  18% {
+    translate: var(--dx) var(--dy);
+    transform: rotateX(0deg) rotateZ(0deg);
+  }
+  42% {
+    translate: var(--dx) var(--dy);
+    transform: rotateX(var(--rx)) rotateZ(var(--rz));
+  }
+  70% {
+    translate: var(--dx) var(--dy);
+  }
+  100% {
+    translate: 0 0;
+    transform: rotateX(var(--rx)) rotateZ(var(--rz));
+  }
 }
 
 /* Layers -------------------------------------------------------------- */
+/* The offset lives in transform, not translate: the CSS minifier drops a
+   `translate: 0 0` keyframe here, so layers would start from their spots */
 .xp-layer {
   position: absolute;
   inset: 0;
-  translate: calc(-1 * var(--k) * var(--a)) calc(var(--k) * var(--b));
-  animation: xp-explode 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s both;
+  transform: translate(
+      calc(-1 * var(--k) * var(--a)),
+      calc(var(--k) * var(--b))
+    )
+    translateZ(0);
+  animation: xp-open var(--intro) cubic-bezier(0.65, 0, 0.35, 1) 0.3s both;
 }
 
-/* Starts as one phone, then fans out */
-@keyframes xp-explode {
-  from {
-    translate: 0 0;
+@keyframes xp-open {
+  0%,
+  44% {
+    transform: translate(0, 0) translateZ(0);
+  }
+  58%,
+  66% {
+    transform: translate(0, 0) translateZ(calc(var(--k) * -64px));
+  }
+  100% {
+    transform: translate(
+        calc(-1 * var(--k) * var(--a)),
+        calc(var(--k) * var(--b))
+      )
+      translateZ(0);
   }
 }
 
@@ -136,39 +180,29 @@
   border: 6px solid color-mix(in oklab, var(--ink) 88%, transparent);
 }
 
-/* Labels: flat, in a column right of the screen, each joined by a leader
-   line to its layer's right-most corner */
+/* Labels: flat, in one row under the drawing, centred under each layer */
 .xp-label {
   position: absolute;
-  left: calc(var(--cx) + var(--k) * var(--sx) + var(--hx) + 6px);
-  top: calc(var(--cy) + var(--k) * var(--sy) + var(--corner-y));
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  left: calc(var(--cx) + var(--k) * var(--sx));
+  top: calc(var(--cy) + 4 * var(--sy) + var(--hy) + 20px);
   font-size: 15px;
   font-weight: 500;
   white-space: nowrap;
   color: var(--muted);
-  translate: 0 -50%;
+  translate: -50% 0;
   animation:
-    xp-fade 0.6s ease-out calc(1.2s + var(--k) * 0.08s) both,
+    xp-fade 0.6s ease-out calc(var(--intro) + var(--k) * 0.08s) both,
     var(--lbl) var(--cycle) ease var(--start) infinite;
-}
-
-.xp-label-line {
-  width: calc(22px - var(--k) * var(--sx));
-  height: 1px;
-  background: color-mix(in oklab, var(--ink) 18%, transparent);
 }
 
 @keyframes xp-fade {
   from {
     opacity: 0;
-    translate: -6px -50%;
+    translate: -50% 6px;
   }
   to {
     opacity: 1;
-    translate: 0 -50%;
+    translate: -50% 0;
   }
 }
 
@@ -1842,7 +1876,6 @@
 @media (max-width: 767px) {
   .xp-stage {
     --z: 0.4;
-    --label-w: 240px;
   }
   .xp-label {
     font-size: 28px;
@@ -1851,14 +1884,10 @@
 
 @media (max-width: 520px) {
   .xp-stage {
-    --z: 0.25;
-    --label-w: 300px;
+    --z: 0.27;
   }
   .xp-label {
-    font-size: 46px;
-  }
-  .xp-label-line {
-    height: 3px;
+    font-size: 32px;
   }
 }
 
