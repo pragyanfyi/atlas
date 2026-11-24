@@ -1,8 +1,68 @@
 ---
 title: Introduction
-description: Atlas is your map to the React Native ecosystem.
+description: What Atlas covers, who it's for, and how to read it.
 ---
 
-Atlas is an open-source, architecture-first guide to React Native and Expo.
+Atlas is a guide to how React Native works. It explains what happens between your JavaScript and the screen, so the framework stops being a black box.
 
-It explains how the runtime works under the hood, how the tools around it fit together, and how to design apps that scale.
+Once you know which thread runs what, what a render costs and how native code gets into your app, you can predict how your app behaves instead of guessing.
+
+## Who it's for
+
+Atlas is for developers who already ship React Native apps.
+
+- It is not a beginner tutorial. It assumes you know React and have built at least one app.
+- It is not documentation for React Native contributors. It goes deep enough to explain behaviour you see in your own app, and stops there.
+
+## What it isn't
+
+- **Not an API reference.** For props, methods and options, use the [React Native docs](https://reactnative.dev/docs/getting-started) and the [Expo docs](https://docs.expo.dev/).
+- **Not a step-by-step course.** There is no project to build along the way. Each page explains one idea.
+
+## The map
+
+<Diagram
+  name="index/the-map"
+  alt="A map of the eight Atlas sections. Foundations is the ground at the bottom. Above it, the runtime runs from History to the New Architecture. Above that, Rendering & State, Data and Native UI are where your app lives. A dashed Expo outline surrounds all of them. An arrow leads out to Shipping, and from Shipping to users."
+/>
+
+Atlas has eight sections:
+
+1. [Foundations](/docs/foundations): the pieces every app runs on, from threads and the JavaScript engine to layout and native code.
+2. [History](/docs/history): how the original architecture worked, and why it was rebuilt.
+3. [New Architecture](/docs/new-architecture): JSI, Fabric, TurboModules and Codegen, and how they fit together.
+4. [Expo](/docs/expo): why React Native recommends a framework, and the tools Expo gives you.
+5. [Rendering & State](/docs/rendering-and-state): how React's rendering model meets a mobile device.
+6. [Data](/docs/data): where data lives in a mobile app, and how it moves.
+7. [Native UI](/docs/native-ui): what makes an app feel native, and why users notice when it doesn't.
+8. [Shipping](/docs/shipping): measuring, debugging and releasing your app.
+
+## How to read it
+
+Start anywhere. Every page stands on its own and never assumes you read the one before it.
+
+Pages share one shape, so you know where to look:
+
+1. What it is
+2. Why it exists
+3. How it works, with diagrams
+4. How it fits with the other pieces
+5. Common pitfalls
+6. Sources
+
+A few blocks repeat across pages:
+
+- **Helps to know** lists pages worth reading first. They are links, not a required order.
+- **What this replaced** appears on pages about the modern architecture and links to the older piece in History.
+- **Under the hood** asides hold deeper detail. You can skip them.
+
+## What it assumes
+
+Atlas treats Expo as the default way to build a React Native app. React Native itself [recommends using a framework](https://reactnative.dev/docs/environment-setup) for new apps, and names Expo as one.
+
+The [Expo](/docs/expo) section explains why, and what building an app looked like before.
+
+## Where to start
+
+- For the whole picture, read [The Life of a Tap](/docs/foundations). It follows one tap through the stack, from your finger to the screen and back.
+- For one topic, use search or the sidebar.
