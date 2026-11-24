@@ -308,6 +308,7 @@
 /* Shared timeline ----------------------------------------------------- */
 .xp-stage
   :is(
+    .xp-outline,
     .xp-beam,
     .xp-packet,
     .xp-hit,
@@ -331,6 +332,248 @@
   animation-delay: var(--start);
   animation-iteration-count: infinite;
   animation-fill-mode: both;
+}
+
+/* Working layers glow: a dotted outline runs round the frame of
+   whichever layer is doing work, blue on the way in and green on the way
+   back. The hand-off from layer to layer is the glow moving on. -------- */
+.xp-outline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  color: var(--accent);
+  opacity: 0;
+  filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 14px currentColor);
+  transform: translateZ(1px);
+}
+
+.xp-outline rect {
+  fill: color-mix(in oklab, currentColor 3%, transparent);
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 0.1 1.1;
+  animation: xp-march 2.4s linear infinite;
+}
+
+@keyframes xp-march {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+.xp-layer[data-layer="host"] .xp-outline {
+  animation-name: xp-lit-host;
+}
+.xp-layer[data-layer="fabric"] .xp-outline {
+  animation-name: xp-lit-fabric;
+}
+.xp-layer[data-layer="jsi"] .xp-outline {
+  animation-name: xp-lit-jsi;
+}
+.xp-layer[data-layer="hermes"] .xp-outline {
+  animation-name: xp-lit-hermes;
+}
+.xp-layer[data-layer="code"] .xp-outline {
+  animation-name: xp-lit-code;
+}
+
+@keyframes xp-lit-host {
+  0% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  0.1% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  10% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  12.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  80.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  82% {
+    opacity: 1;
+    color: var(--update);
+  }
+  96% {
+    opacity: 1;
+    color: var(--update);
+  }
+  98.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  100% {
+    opacity: 0;
+    color: var(--update);
+  }
+}
+@keyframes xp-lit-fabric {
+  0% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  10.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  12% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  20% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  22.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  64.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  66% {
+    opacity: 1;
+    color: var(--update);
+  }
+  78% {
+    opacity: 1;
+    color: var(--update);
+  }
+  80.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  100% {
+    opacity: 0;
+    color: var(--update);
+  }
+}
+@keyframes xp-lit-jsi {
+  0% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  22.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  24% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  30% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  32.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  60.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  62% {
+    opacity: 1;
+    color: var(--update);
+  }
+  66% {
+    opacity: 1;
+    color: var(--update);
+  }
+  68.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  100% {
+    opacity: 0;
+    color: var(--update);
+  }
+}
+@keyframes xp-lit-hermes {
+  0% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  31.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  33% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  41% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  43.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  56.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  58% {
+    opacity: 1;
+    color: var(--update);
+  }
+  62% {
+    opacity: 1;
+    color: var(--update);
+  }
+  64.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  100% {
+    opacity: 0;
+    color: var(--update);
+  }
+}
+@keyframes xp-lit-code {
+  0% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  43.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  45% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  53% {
+    opacity: 1;
+    color: var(--update);
+  }
+  58% {
+    opacity: 1;
+    color: var(--update);
+  }
+  60.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  100% {
+    opacity: 0;
+    color: var(--update);
+  }
 }
 
 /* The wire: a dashed trace from the button, through every layer ------ */
@@ -1904,6 +2147,7 @@
   .tap-dot {
     animation: none !important;
   }
+  .xp-outline,
   .xp-packet,
   .xp-hit,
   .xp-finger,

@@ -68,6 +68,16 @@ export function ExplodedPhone({ className }: { className?: string }) {
                 <Face />
               </div>
               <i className="xp-hit" aria-hidden />
+              <svg viewBox="0 0 232 480" className="xp-outline" aria-hidden>
+                <rect
+                  x="1"
+                  y="1"
+                  width="230"
+                  height="478"
+                  rx="37"
+                  pathLength="100"
+                />
+              </svg>
             </div>
           );
         })}
