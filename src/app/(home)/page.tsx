@@ -1,132 +1,252 @@
-import { ArrowRight, Blocks, Cpu, Gauge, Package } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { ArchitectureDiagram } from "@/components/architecture-diagram";
+import { ExplodedPhone } from "@/components/home/exploded-phone";
 import { gitConfig } from "@/lib/shared";
 
-const topics = [
+const sections = [
   {
-    icon: Cpu,
-    title: "Runtime & New Architecture",
-    body: "Hermes, JSI, Fabric and TurboModules: what actually runs, and why.",
+    slug: "foundations",
+    title: "Foundations",
+    body: "Threads, the JS engine, host components and layout. The whole stack in one tap.",
   },
   {
-    icon: Package,
-    title: "Expo ecosystem",
-    body: "Modules, config plugins and the build pipeline, mapped end to end.",
+    slug: "history",
+    title: "History",
+    body: "The bridge, Paper and legacy modules: how it worked in 2015, and why it was rebuilt.",
   },
   {
-    icon: Gauge,
-    title: "Performance",
-    body: "The libraries that keep lists, gestures and animations at 60fps.",
+    slug: "new-architecture",
+    title: "New Architecture",
+    body: "JSI, Fabric, TurboModules and Codegen, and how the pieces connect.",
   },
   {
-    icon: Blocks,
-    title: "Mobile primitives",
-    body: "The building blocks every app needs, and how to define your own.",
+    slug: "expo",
+    title: "Expo",
+    body: "Why React Native recommends a framework, and what Expo changed.",
+  },
+  {
+    slug: "rendering-and-state",
+    title: "Rendering & State",
+    body: "What a render costs on a phone. Lists, animations, gestures, the keyboard.",
+  },
+  {
+    slug: "data",
+    title: "Data",
+    body: "Where data lives in a mobile app, and how it moves, offline included.",
+  },
+  {
+    slug: "native-ui",
+    title: "Native UI",
+    body: "Navigation, sheets, SwiftUI and Compose. What makes an app feel native.",
+  },
+  {
+    slug: "shipping",
+    title: "Shipping",
+    body: "Measuring, debugging, startup and upgrades. Getting it into users' hands.",
   },
 ];
 
-const path = [
-  "Read the introduction",
-  "Learn how to define a primitive",
-  "Go deeper into the runtime",
+const tapPath = [
+  ["Touch", "finger down"],
+  ["Host view", "UIView · View"],
+  ["Fabric", "event dispatch"],
+  ["JSI", "C++ call"],
+  ["Hermes", "onPress()"],
+  ["React", "setLiked(true)"],
+  ["Commit", "shadow tree diff"],
+  ["Pixels", "next frame"],
+] as const;
+
+const principles = [
+  {
+    title: "Diagrams over code",
+    body: "Every mechanism gets a picture first. Code shows up when it earns its place.",
+  },
+  {
+    title: "Concepts, not libraries",
+    body: "Libraries come and go. Pages explain the idea, and name the tools inside it.",
+  },
+  {
+    title: "Checked against sources",
+    body: "Claims and dates are verified against the React Native and Expo docs.",
+  },
 ];
+
+const repoUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
 
 export default function HomePage() {
   return (
     <div className="flex flex-1 flex-col">
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div aria-hidden className="hero-grid absolute inset-0 -z-10" />
-        <div className="mx-auto flex max-w-3xl flex-col items-center px-6 pt-24 pb-16 text-center md:pt-32">
-          <span className="mb-6 rounded-full bg-fd-secondary px-3 py-1 text-xs font-medium text-fd-muted-foreground">
-            Open source · Architecture-first
-          </span>
-          <h1 className="text-4xl font-semibold tracking-tight text-balance md:text-6xl">
-            Your map to the React Native ecosystem
-          </h1>
-          <p className="mt-5 max-w-xl text-lg text-fd-muted-foreground text-balance">
-            Understand how things work under the hood, explore the tools that
-            power modern mobile development, and design apps that scale.
-            Diagrams over code.
-          </p>
-          <div className="mt-8 flex items-center gap-3">
-            <Link
-              href="/docs"
-              className="inline-flex h-10 items-center gap-1.5 rounded-full bg-fd-primary px-5 text-sm font-medium text-fd-primary-foreground transition-opacity hover:opacity-90"
-            >
-              Start reading
-              <ArrowRight className="size-4" />
-            </Link>
-            <a
-              href={`https://github.com/${gitConfig.user}/${gitConfig.repo}`}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="inline-flex h-10 items-center rounded-full bg-fd-secondary px-5 text-sm font-medium transition-colors hover:bg-fd-accent"
-            >
-              GitHub
-            </a>
-          </div>
-        </div>
-
-        <div className="mx-auto max-w-3xl px-6 pb-24">
-          <div className="rounded-3xl border bg-fd-card/50 p-4 md:p-8">
-            <ArchitectureDiagram className="h-auto w-full" />
-          </div>
+      {/* Animation: the whole section, full width */}
+      <section className="relative overflow-hidden border-b">
+        <div aria-hidden className="home-grid absolute inset-0 -z-10" />
+        <div
+          aria-hidden
+          className="home-glow absolute top-1/2 left-1/2 -z-10 h-[600px] w-[1100px] -translate-1/2 opacity-60"
+        />
+        <div className="flex justify-center pt-10 pb-6 md:pt-14">
+          <ExplodedPhone />
         </div>
       </section>
 
-      {/* Topics */}
-      <section className="mx-auto w-full max-w-5xl px-6 pb-24">
-        <h2 className="mb-8 text-sm font-medium text-fd-muted-foreground">
-          What's inside
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {topics.map(({ icon: Icon, title, body }) => (
+      {/* Heading */}
+      <section className="mx-auto flex w-full max-w-3xl flex-col items-center px-6 pt-20 pb-24 text-center">
+        <p className="mb-6 font-mono text-xs tracking-wide text-fd-muted-foreground uppercase">
+          A field guide to React Native internals
+        </p>
+        <h1 className="text-5xl font-semibold tracking-tighter text-balance md:text-7xl">
+          React Native,{" "}
+          <span className="text-fd-muted-foreground">taken apart.</span>
+        </h1>
+        <p className="mt-6 max-w-xl text-lg/relaxed text-fd-muted-foreground text-pretty">
+          What happens between your components and the pixels on screen. Hermes,
+          JSI, Fabric, Expo and the rest, one concept at a time.
+        </p>
+        <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/docs"
+            className="group inline-flex h-10 items-center gap-1.5 rounded-full bg-fd-foreground px-5 text-sm font-medium text-fd-background transition-opacity hover:opacity-85"
+          >
+            Start reading
+            <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+          <a
+            href={repoUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-flex h-10 items-center gap-1.5 rounded-full border px-5 text-sm font-medium transition-colors hover:bg-fd-accent"
+          >
+            GitHub
+            <ArrowUpRight className="size-4 text-fd-muted-foreground" />
+          </a>
+        </div>
+      </section>
+
+      {/* The map */}
+      <section className="mx-auto w-full max-w-6xl px-6 py-24">
+        <SectionHeading
+          eyebrow="The map"
+          title="Eight sections, one stack."
+          body="Each page stands alone. Read in order for the full picture, or jump to the layer you're debugging."
+        />
+        <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border bg-fd-border sm:grid-cols-2 lg:grid-cols-4">
+          {sections.map((s, i) => (
             <Link
-              key={title}
-              href="/docs"
-              className="group flex flex-col gap-3 rounded-2xl border bg-fd-card p-6 transition-colors hover:bg-fd-accent/60"
+              key={s.slug}
+              href={`/docs/${s.slug}`}
+              className="group relative flex min-h-48 flex-col bg-fd-background p-6 transition-colors hover:bg-fd-card"
             >
-              <span className="inline-flex size-9 items-center justify-center rounded-full bg-fd-secondary text-fd-primary">
-                <Icon className="size-4" />
+              <span className="font-mono text-xs text-fd-muted-foreground tabular-nums transition-colors group-hover:text-fd-primary">
+                {String(i + 1).padStart(2, "0")}
               </span>
-              <h3 className="font-medium">{title}</h3>
-              <p className="text-sm text-fd-muted-foreground">{body}</p>
+              <h3 className="mt-auto pt-10 font-medium">{s.title}</h3>
+              <p className="mt-1.5 text-sm text-fd-muted-foreground text-pretty">
+                {s.body}
+              </p>
+              <ArrowUpRight className="absolute top-6 right-6 size-4 text-fd-muted-foreground opacity-0 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100" />
             </Link>
           ))}
         </div>
       </section>
 
-      {/* Start here */}
-      <section className="mx-auto w-full max-w-5xl px-6 pb-24">
-        <h2 className="mb-8 text-sm font-medium text-fd-muted-foreground">
-          Start here
-        </h2>
-        <ol className="divide-y rounded-2xl border bg-fd-card">
-          {path.map((step, i) => (
-            <li key={step}>
-              <Link
-                href="/docs"
-                className="flex items-center gap-4 px-6 py-4 transition-colors hover:bg-fd-accent/60"
+      {/* A tap's path */}
+      <section className="border-y bg-fd-card/40">
+        <div className="mx-auto w-full max-w-6xl px-6 py-24">
+          <SectionHeading
+            eyebrow="Start here"
+            title="Follow one tap."
+            body="The first page traces a single tap from your finger, through every layer, to the next frame. Once you've seen it, the rest of the map makes sense."
+          />
+          <div className="mt-12 overflow-x-auto pb-2">
+            <ol className="relative flex min-w-[880px] justify-between">
+              <span
+                aria-hidden
+                className="absolute top-[7px] right-[6%] left-[6%] h-px bg-fd-border"
+              />
+              <span
+                aria-hidden
+                className="absolute top-[7px] right-[6%] left-[6%] h-px"
               >
-                <span className="inline-flex size-7 items-center justify-center rounded-full bg-fd-secondary text-xs font-medium tabular-nums">
-                  {i + 1}
-                </span>
-                <span className="flex-1">{step}</span>
-                <ArrowRight className="size-4 text-fd-muted-foreground" />
-              </Link>
-            </li>
+                <span className="tap-dot absolute top-1/2 size-2 -translate-1/2 rounded-full bg-fd-primary shadow-[0_0_12px_2px_var(--color-fd-primary)]" />
+              </span>
+              {tapPath.map(([title, sub], i) => (
+                <li
+                  key={title}
+                  className="relative flex w-[12%] flex-col items-center text-center"
+                >
+                  <span className="relative z-10 size-[15px] rounded-full border bg-fd-background p-[3px]">
+                    <span
+                      className={`block size-full rounded-full ${i === 0 || i === tapPath.length - 1 ? "bg-fd-primary" : "bg-fd-border"}`}
+                    />
+                  </span>
+                  <span className="mt-4 text-sm font-medium">{title}</span>
+                  <span className="mt-1 font-mono text-[11px] text-fd-muted-foreground">
+                    {sub}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <Link
+            href="/docs/foundations"
+            className="group mt-10 inline-flex items-center gap-1.5 text-sm font-medium text-fd-primary"
+          >
+            Read The Life of a Tap
+            <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </div>
+      </section>
+
+      {/* Principles */}
+      <section className="mx-auto w-full max-w-6xl px-6 py-24">
+        <div className="grid gap-10 md:grid-cols-3 md:gap-8">
+          {principles.map((p) => (
+            <div key={p.title} className="border-t pt-6">
+              <h3 className="font-medium">{p.title}</h3>
+              <p className="mt-2 text-sm text-fd-muted-foreground text-pretty">
+                {p.body}
+              </p>
+            </div>
           ))}
-        </ol>
+        </div>
       </section>
 
       {/* Footer */}
       <footer className="mt-auto border-t">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-8 text-sm text-fd-muted-foreground">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-8 text-sm text-fd-muted-foreground">
           <span>Atlas · Open source</span>
+          <a
+            href={repoUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="transition-colors hover:text-fd-foreground"
+          >
+            GitHub
+          </a>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function SectionHeading({
+  eyebrow,
+  title,
+  body,
+}: {
+  eyebrow: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="max-w-2xl">
+      <p className="font-mono text-xs tracking-wide text-fd-muted-foreground uppercase">
+        {eyebrow}
+      </p>
+      <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+        {title}
+      </h2>
+      <p className="mt-4 text-fd-muted-foreground text-pretty">{body}</p>
     </div>
   );
 }

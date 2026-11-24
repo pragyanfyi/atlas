@@ -1,0 +1,1780 @@
+/*
+ * Home page: the exploded phone, plus the small motion pieces below it.
+ *
+ * Everything here is CSS-only so the home page stays a server component.
+ * Platform-specific bits key off <html data-platform>.
+ */
+
+/* Backdrop ------------------------------------------------------------ */
+.home-grid {
+  background-image: radial-gradient(
+    var(--color-fd-border) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+  mask-image: radial-gradient(
+    ellipse 70% 70% at 50% 50%,
+    #000 20%,
+    transparent 75%
+  );
+}
+
+.home-glow {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--color-fd-primary) 16%, transparent),
+    transparent
+  );
+}
+
+/* Platform-only nodes ------------------------------------------------- */
+:root[data-platform="material"] .xp-ios,
+:root:not([data-platform="material"]) .xp-android {
+  display: none;
+}
+
+/* Stage --------------------------------------------------------------- */
+/*
+ * One tilted plane: the screen's top-left corner is furthest away and its
+ * bottom-right corner is closest to the viewer. The screen sits top left;
+ * each other layer is offset inside the plane by (-a, +b) per step (a is
+ * negative, so it moves along the short side), which lands it down and to
+ * the right of the last without overlapping. Orthographic on purpose: plain trig sizes
+ * the stage, so change a, b, rx or rz (0–90deg) and
+ * everything else follows.
+ *
+ * A local vector (x, y) lands on screen at
+ *   X = x cos(rz) - y sin(rz),   Y = (x sin(rz) + y cos(rz)) cos(rx)
+ */
+.xp-stage {
+  --w: 232px;
+  --h: 480px;
+  --rx: 60deg;
+  --rz: 36deg;
+  --a: -260px;
+  --b: 40px;
+  --pad: 32px;
+  --z: 0.86;
+
+  /* One step on screen (sx > 0: right, sy > 0: down) */
+  --sx: calc(-1 * var(--a) * cos(var(--rz)) - var(--b) * sin(var(--rz)));
+  --sy: calc(
+    (-1 * var(--a) * sin(var(--rz)) + var(--b) * cos(var(--rz))) *
+    cos(var(--rx))
+  );
+  /* Half extents of one tilted layer */
+  --hx: calc(var(--w) / 2 * cos(var(--rz)) + var(--h) / 2 * sin(var(--rz)));
+  --hy: calc(
+    (var(--w) / 2 * sin(var(--rz)) + var(--h) / 2 * cos(var(--rz))) *
+    cos(var(--rx))
+  );
+  /* Stage size, and the centre of the screen layer (k = 0) */
+  --W: calc(2 * (var(--pad) + var(--hx)) + max(4 * var(--sx), -4 * var(--sx)));
+  --H: calc(2 * (var(--pad) + var(--hy)) + max(4 * var(--sy), -4 * var(--sy)));
+  --cx: calc(var(--pad) + var(--hx) + max(0px, -4 * var(--sx)));
+  --cy: calc(var(--pad) + var(--hy) + max(0px, -4 * var(--sy)));
+
+  --accent: var(--color-fd-primary);
+  --update: var(--color-fd-success);
+  --line: var(--color-fd-border);
+  --surface: var(--color-fd-card);
+  --ink: var(--color-fd-foreground);
+  --muted: var(--color-fd-muted-foreground);
+  --tap-x: 116px;
+  --tap-y: 412px;
+  --intro: 3.2s;
+  --cycle: 12s;
+  --start: 3.8s;
+
+  position: relative;
+  flex: none;
+  zoom: var(--z);
+  width: var(--W);
+  height: var(--H);
+}
+
+:root[data-platform="material"] .xp-stage {
+  --tap-x: 164px;
+}
+
+.xp-plane {
+  /* How far the stage centre is from the screen layer's final spot */
+  --dx: calc(var(--W) / 2 - var(--cx));
+  --dy: calc(var(--H) / 2 - var(--cy));
+
+  position: absolute;
+  left: calc(var(--cx) - var(--w) / 2);
+  top: calc(var(--cy) - var(--h) / 2);
+  width: var(--w);
+  height: var(--h);
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rx)) rotateZ(var(--rz));
+  animation: xp-tilt var(--intro) cubic-bezier(0.65, 0, 0.35, 1) 0.3s both;
+}
+
+/*
+ * Opening: one upright phone in the middle, it tilts back, the layers lift
+ * apart, then everything slides out to its place.
+ */
+@keyframes xp-tilt {
+  0%,
+  18% {
+    translate: var(--dx) var(--dy);
+    transform: rotateX(0deg) rotateZ(0deg);
+  }
+  42% {
+    translate: var(--dx) var(--dy);
+    transform: rotateX(var(--rx)) rotateZ(var(--rz));
+  }
+  70% {
+    translate: var(--dx) var(--dy);
+  }
+  100% {
+    translate: 0 0;
+    transform: rotateX(var(--rx)) rotateZ(var(--rz));
+  }
+}
+
+/* Layers -------------------------------------------------------------- */
+/* The offset lives in transform, not translate: the CSS minifier drops a
+   `translate: 0 0` keyframe here, so layers would start from their spots */
+.xp-layer {
+  position: absolute;
+  inset: 0;
+  transform: translate(
+      calc(-1 * var(--k) * var(--a)),
+      calc(var(--k) * var(--b))
+    )
+    translateZ(calc(var(--k) * -6px));
+  animation: xp-open var(--intro) cubic-bezier(0.65, 0, 0.35, 1) 0.3s both;
+}
+
+@keyframes xp-open {
+  0%,
+  44% {
+    transform: translate(0, 0) translateZ(0);
+  }
+  58%,
+  66% {
+    transform: translate(0, 0) translateZ(calc(var(--k) * -64px));
+  }
+  100% {
+    transform: translate(
+        calc(-1 * var(--k) * var(--a)),
+        calc(var(--k) * var(--b))
+      )
+      translateZ(calc(var(--k) * -6px));
+  }
+}
+
+.xp-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 38px;
+  border: 1px dashed color-mix(in oklab, var(--ink) 22%, transparent);
+  background: var(--surface);
+  box-shadow: 0 50px 70px -40px rgb(0 0 0 / 0.35);
+}
+
+.xp-layer[data-layer="host"] .xp-face {
+  border: 6px solid color-mix(in oklab, var(--ink) 88%, transparent);
+}
+
+/* Headings: each layer's title lies on the tilted plane just past the
+   frame's top edge, so it runs along that edge on the same slant. A copy
+   on top glows in the frame's colour while the layer works. ----------- */
+.xp-heading {
+  position: absolute;
+  left: 10px;
+  bottom: calc(100% + 10px);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--muted);
+  animation: xp-heading-in 0.6s ease-out calc(var(--intro) + var(--k) * 0.08s)
+    both;
+}
+
+.xp-heading-glow {
+  position: absolute;
+  inset: 0;
+  color: var(--accent);
+  opacity: 0;
+  text-shadow:
+    0 0 8px currentColor,
+    0 0 18px currentColor;
+}
+
+@keyframes xp-heading-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Shared timeline ----------------------------------------------------- */
+.xp-stage
+  :is(
+    .xp-outline,
+    .xp-heading-glow,
+    .xp-heading-glow,
+    .xp-finger,
+    .xp-ripple,
+    .xp-btn,
+    .xp-btn > span,
+    .xp-heart,
+    .xp-box-btn,
+    .xp-box-text,
+    .xp-node rect,
+    .xp-node text,
+    .xp-edge,
+    .xp-token,
+    .xp-frame,
+    .xp-pc,
+    .xp-hl,
+    .xp-state > span
+  ) {
+  animation-duration: var(--cycle);
+  animation-delay: var(--start);
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
+}
+
+/* Working layers glow: a dotted outline runs round the frame of
+   whichever layer is doing work, blue on the way in and green on the way
+   back. The hand-off from layer to layer is the glow moving on. -------- */
+.xp-outline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  color: var(--accent);
+  opacity: 0;
+  filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 14px currentColor);
+  transform: translateZ(1px);
+}
+
+.xp-outline rect {
+  fill: color-mix(in oklab, currentColor 3%, transparent);
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 0.1 1.1;
+  animation: xp-march 2.4s linear infinite;
+}
+
+@keyframes xp-march {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+.xp-layer[data-layer="host"] :is(.xp-outline, .xp-heading-glow) {
+  animation-name: xp-lit-host;
+}
+.xp-layer[data-layer="fabric"] :is(.xp-outline, .xp-heading-glow) {
+  animation-name: xp-lit-fabric;
+}
+.xp-layer[data-layer="jsi"] :is(.xp-outline, .xp-heading-glow) {
+  animation-name: xp-lit-jsi;
+}
+.xp-layer[data-layer="hermes"] :is(.xp-outline, .xp-heading-glow) {
+  animation-name: xp-lit-hermes;
+}
+.xp-layer[data-layer="code"] :is(.xp-outline, .xp-heading-glow) {
+  animation-name: xp-lit-code;
+}
+
+@keyframes xp-lit-host {
+  0% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  0.1% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  10% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  12.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  80.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  82% {
+    opacity: 1;
+    color: var(--update);
+  }
+  96% {
+    opacity: 1;
+    color: var(--update);
+  }
+  98.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  100% {
+    opacity: 0;
+    color: var(--update);
+  }
+}
+@keyframes xp-lit-fabric {
+  0% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  10.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  12% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  20% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  22.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  64.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  66% {
+    opacity: 1;
+    color: var(--update);
+  }
+  78% {
+    opacity: 1;
+    color: var(--update);
+  }
+  80.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  100% {
+    opacity: 0;
+    color: var(--update);
+  }
+}
+@keyframes xp-lit-jsi {
+  0% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  22.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  24% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  30% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  32.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  60.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  62% {
+    opacity: 1;
+    color: var(--update);
+  }
+  66% {
+    opacity: 1;
+    color: var(--update);
+  }
+  68.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  100% {
+    opacity: 0;
+    color: var(--update);
+  }
+}
+@keyframes xp-lit-hermes {
+  0% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  31.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  33% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  41% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  43.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  56.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  58% {
+    opacity: 1;
+    color: var(--update);
+  }
+  62% {
+    opacity: 1;
+    color: var(--update);
+  }
+  64.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  100% {
+    opacity: 0;
+    color: var(--update);
+  }
+}
+@keyframes xp-lit-code {
+  0% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  43.5% {
+    opacity: 0;
+    color: var(--accent);
+  }
+  45% {
+    opacity: 1;
+    color: var(--accent);
+  }
+  53% {
+    opacity: 1;
+    color: var(--update);
+  }
+  58% {
+    opacity: 1;
+    color: var(--update);
+  }
+  60.5% {
+    opacity: 0;
+    color: var(--update);
+  }
+  100% {
+    opacity: 0;
+    color: var(--update);
+  }
+}
+
+/* Host views (the screen) -------------------------------------------- */
+.xp-screen {
+  position: absolute;
+  inset: 0;
+  font-size: 11px;
+  color: var(--ink);
+}
+
+.xp-status {
+  position: absolute;
+  inset: 14px 22px auto;
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.xp-status-icons {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.xp-status-icons i {
+  width: 9px;
+  height: 6px;
+  border-radius: 1.5px;
+  background: var(--ink);
+  opacity: 0.8;
+}
+
+.xp-island {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  width: 68px;
+  height: 20px;
+  margin-left: -34px;
+  border-radius: 999px;
+  background: var(--ink);
+}
+
+.xp-punch {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  width: 11px;
+  height: 11px;
+  margin-left: -5.5px;
+  border-radius: 999px;
+  background: var(--ink);
+}
+
+.xp-title {
+  position: absolute;
+  top: 54px;
+  left: 18px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.xp-appbar {
+  position: absolute;
+  top: 46px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 40px;
+  padding: 0 16px;
+  font-size: 16px;
+}
+
+.xp-appbar-icon {
+  position: relative;
+  width: 14px;
+  height: 10px;
+  border-block: 1.5px solid var(--ink);
+}
+
+.xp-appbar-icon::after {
+  content: "";
+  position: absolute;
+  inset: 2.5px 0 auto;
+  height: 1.5px;
+  background: var(--ink);
+}
+
+.xp-rows {
+  position: absolute;
+  top: 100px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.xp-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.xp-avatar {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--color-fd-secondary);
+}
+
+.xp-lines {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.xp-lines i {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-fd-secondary);
+}
+
+.xp-lines i:first-child {
+  background: color-mix(in oklab, var(--ink) 22%, transparent);
+}
+
+/* The button: pressed, then flips to "Liked" when the update lands */
+.xp-btn {
+  --off: var(--color-fd-secondary);
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  top: calc(var(--tap-y) - 21px);
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--off);
+  font-size: 13px;
+  font-weight: 600;
+  animation-name: xp-btn;
+}
+
+/* Material: an extended FAB in the corner */
+:root[data-platform="material"] .xp-btn {
+  left: auto;
+  right: 18px;
+  width: 92px;
+  top: calc(var(--tap-y) - 26px);
+  height: 52px;
+  border-radius: 16px;
+}
+
+@keyframes xp-btn {
+  0%,
+  3% {
+    scale: 1;
+    background: var(--off);
+  }
+  5.5% {
+    scale: 0.93;
+  }
+  9% {
+    scale: 1;
+  }
+  82% {
+    scale: 1;
+    background: var(--off);
+  }
+  84% {
+    scale: 1.06;
+    background: var(--accent);
+  }
+  87%,
+  96% {
+    scale: 1;
+    background: var(--accent);
+  }
+  99%,
+  100% {
+    background: var(--off);
+  }
+}
+
+.xp-btn > span {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.xp-btn-like {
+  color: var(--ink);
+  animation-name: xp-like;
+}
+
+.xp-btn-liked {
+  color: var(--color-fd-primary-foreground);
+  animation-name: xp-liked;
+}
+
+@keyframes xp-like {
+  0%,
+  82.5% {
+    opacity: 1;
+  }
+  83%,
+  96.5% {
+    opacity: 0;
+  }
+  98%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes xp-liked {
+  0%,
+  82.5% {
+    opacity: 0;
+  }
+  83%,
+  96.5% {
+    opacity: 1;
+  }
+  98%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.xp-heart {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+}
+
+.xp-btn-liked .xp-heart {
+  fill: currentColor;
+  animation-name: xp-heart;
+}
+
+@keyframes xp-heart {
+  0%,
+  83% {
+    scale: 0.4;
+  }
+  86% {
+    scale: 1.35;
+  }
+  89%,
+  100% {
+    scale: 1;
+  }
+}
+
+.xp-finger {
+  position: absolute;
+  left: var(--tap-x);
+  top: var(--tap-y);
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--ink) 16%, transparent);
+  border: 1.5px solid color-mix(in oklab, var(--ink) 55%, transparent);
+  animation-name: xp-finger;
+}
+
+@keyframes xp-finger {
+  0% {
+    opacity: 0;
+    scale: 1.5;
+  }
+  2.5% {
+    opacity: 1;
+    scale: 1;
+  }
+  5.5% {
+    opacity: 1;
+    scale: 0.8;
+  }
+  8% {
+    opacity: 0.8;
+    scale: 1;
+  }
+  10%,
+  100% {
+    opacity: 0;
+    scale: 1.1;
+  }
+}
+
+.xp-ripple {
+  position: absolute;
+  left: var(--tap-x);
+  top: var(--tap-y);
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--ink) 20%, transparent);
+  animation-name: xp-ripple;
+}
+
+@keyframes xp-ripple {
+  0%,
+  4.5% {
+    opacity: 0;
+    scale: 0.2;
+  }
+  5% {
+    opacity: 0.8;
+    scale: 0.2;
+  }
+  13%,
+  100% {
+    opacity: 0;
+    scale: 1.8;
+  }
+}
+
+.xp-home {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  width: 84px;
+  height: 4px;
+  margin-left: -42px;
+  border-radius: 999px;
+  background: var(--ink);
+}
+
+.xp-gesture {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  width: 64px;
+  height: 3px;
+  margin-left: -32px;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+/* Fabric: hit-test the shadow tree, then clone the changed path ----- */
+.xp-fabric {
+  position: absolute;
+  inset: 0;
+}
+
+.xp-tree {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.xp-edge {
+  fill: none;
+  stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  stroke-width: 1;
+}
+
+.xp-node rect {
+  fill: var(--surface);
+  stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+  stroke-width: 1;
+}
+
+.xp-node text {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 8px;
+  text-anchor: middle;
+  fill: var(--ink);
+}
+
+/* On the way in: Root → Pressable (blue). On the way out: the new Text,
+   then every ancestor up to Root is cloned (green) */
+.xp-node-root rect {
+  animation-name: xp-n-root;
+}
+.xp-node-press rect {
+  animation-name: xp-n-press;
+}
+.xp-node-text rect {
+  animation-name: xp-n-text;
+}
+.xp-edge-press {
+  animation-name: xp-e-press;
+}
+.xp-edge-text {
+  animation-name: xp-e-text;
+}
+
+.xp-stage .xp-text-old {
+  animation-name: xp-state-false;
+  animation-timing-function: step-end;
+}
+.xp-stage .xp-text-new {
+  opacity: 0;
+  animation-name: xp-text-new;
+  animation-timing-function: step-end;
+}
+
+@keyframes xp-text-new {
+  0%,
+  65.9% {
+    opacity: 0;
+  }
+  66%,
+  96.5% {
+    opacity: 1;
+  }
+  98%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes xp-n-root {
+  0% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  11.9% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  12% {
+    stroke: var(--accent);
+    fill: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  }
+  20% {
+    stroke: var(--accent);
+    fill: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  }
+  21.5% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  68.9% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  69% {
+    stroke: var(--update);
+    fill: color-mix(in oklab, var(--update) 22%, var(--surface));
+  }
+  78% {
+    stroke: var(--update);
+    fill: color-mix(in oklab, var(--update) 22%, var(--surface));
+  }
+  79.5% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  100% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+}
+@keyframes xp-n-press {
+  0% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  13.9% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  14% {
+    stroke: var(--accent);
+    fill: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  }
+  20% {
+    stroke: var(--accent);
+    fill: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  }
+  21.5% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  67.4% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  67.5% {
+    stroke: var(--update);
+    fill: color-mix(in oklab, var(--update) 22%, var(--surface));
+  }
+  78% {
+    stroke: var(--update);
+    fill: color-mix(in oklab, var(--update) 22%, var(--surface));
+  }
+  79.5% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  100% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+}
+@keyframes xp-n-text {
+  0% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  65.9% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  66% {
+    stroke: var(--update);
+    fill: color-mix(in oklab, var(--update) 22%, var(--surface));
+  }
+  78% {
+    stroke: var(--update);
+    fill: color-mix(in oklab, var(--update) 22%, var(--surface));
+  }
+  79.5% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  100% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+}
+@keyframes xp-e-press {
+  0% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  12.9% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  13% {
+    stroke: var(--accent);
+  }
+  20% {
+    stroke: var(--accent);
+  }
+  21.5% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  67.9% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  68% {
+    stroke: var(--update);
+  }
+  78% {
+    stroke: var(--update);
+  }
+  79.5% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  100% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+}
+@keyframes xp-e-text {
+  0% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  66.9% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  67% {
+    stroke: var(--update);
+  }
+  78% {
+    stroke: var(--update);
+  }
+  79.5% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  100% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+}
+
+/* Yoga layout: the boxes the tree lays out into */
+.xp-box {
+  position: absolute;
+  border: 1px dashed color-mix(in oklab, var(--ink) 30%, transparent);
+  border-radius: 6px;
+}
+
+.xp-box-header {
+  inset: 236px 14px auto;
+  height: 26px;
+}
+
+.xp-box-list {
+  inset: 270px 14px auto;
+  height: 104px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 25px,
+    color-mix(in oklab, var(--ink) 14%, transparent) 25px 26px
+  );
+}
+
+/* Mirrors .xp-btn, a few px larger */
+.xp-box-btn {
+  left: 22px;
+  right: 22px;
+  top: calc(var(--tap-y) - 23px);
+  height: 46px;
+  display: grid;
+  place-items: center;
+  animation-name: xp-node-btn;
+}
+
+:root[data-platform="material"] .xp-box-btn {
+  left: auto;
+  right: 16px;
+  width: 96px;
+  top: calc(var(--tap-y) - 28px);
+  height: 56px;
+}
+
+/* The Text box: re-measured wider when "Like" becomes "Liked" */
+.xp-box-text {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  border-radius: 3px;
+  animation-name: xp-node-text;
+}
+
+@keyframes xp-node-btn {
+  0%,
+  13.9% {
+    border-style: dashed;
+    border-color: color-mix(in oklab, var(--ink) 30%, transparent);
+    background: transparent;
+  }
+  14%,
+  19% {
+    border-style: solid;
+    border-color: var(--accent);
+    background: color-mix(in oklab, var(--accent) 14%, transparent);
+  }
+  21%,
+  69.9% {
+    border-style: dashed;
+    border-color: color-mix(in oklab, var(--ink) 30%, transparent);
+    background: transparent;
+  }
+  70%,
+  76% {
+    border-style: solid;
+    border-color: var(--update);
+    background: color-mix(in oklab, var(--update) 10%, transparent);
+  }
+  78%,
+  100% {
+    border-style: dashed;
+    border-color: color-mix(in oklab, var(--ink) 30%, transparent);
+    background: transparent;
+  }
+}
+
+@keyframes xp-node-text {
+  0%,
+  70% {
+    width: 28px;
+    border-style: dashed;
+    border-color: color-mix(in oklab, var(--ink) 30%, transparent);
+    background: transparent;
+  }
+  70.1% {
+    border-style: solid;
+    border-color: var(--update);
+    background: color-mix(in oklab, var(--update) 25%, transparent);
+  }
+  73%,
+  76% {
+    width: 58px;
+    border-style: solid;
+    border-color: var(--update);
+    background: color-mix(in oklab, var(--update) 25%, transparent);
+  }
+  79%,
+  96% {
+    width: 58px;
+    border-style: dashed;
+    border-color: color-mix(in oklab, var(--ink) 30%, transparent);
+    background: transparent;
+  }
+  99%,
+  100% {
+    width: 28px;
+  }
+}
+
+/* JSI: C++ calls straight into JS, and JS straight back -------------- */
+.xp-jsi {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: center;
+}
+
+.xp-side {
+  position: absolute;
+  top: 44px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.xp-side-cpp {
+  left: 20px;
+}
+
+.xp-side-js {
+  right: 20px;
+}
+
+.xp-divider {
+  position: absolute;
+  top: 40px;
+  bottom: 40px;
+  left: 50%;
+  border-left: 1px dashed color-mix(in oklab, var(--ink) 40%, transparent);
+}
+
+.xp-lane {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  height: 0;
+  border-top: 1px solid color-mix(in oklab, var(--ink) 25%, transparent);
+}
+
+.xp-lane-in {
+  top: 180px;
+}
+
+.xp-lane-out {
+  top: 260px;
+}
+
+.xp-token {
+  position: absolute;
+  padding: 3px 7px;
+  border: 1px solid color-mix(in oklab, var(--ink) 25%, transparent);
+  border-radius: 6px;
+  background: var(--surface);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  line-height: 12px;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+/* onPress(e): C++ → JS on the way in */
+.xp-token-in {
+  --c: var(--accent);
+  left: 16px;
+  top: 170px;
+  animation-name: xp-token-in;
+}
+
+/* cloneNode(): JS → C++ on the way out */
+.xp-token-out {
+  --c: var(--update);
+  left: 132px;
+  top: 250px;
+  animation-name: xp-token-out;
+}
+
+@keyframes xp-token-in {
+  0%,
+  23.9% {
+    translate: 0 0;
+    opacity: 1;
+    color: var(--muted);
+    border-color: color-mix(in oklab, var(--ink) 25%, transparent);
+    box-shadow: 0 0 0 transparent;
+  }
+  24% {
+    translate: 0 0;
+    color: var(--c);
+    border-color: var(--c);
+    box-shadow: 0 0 12px color-mix(in oklab, var(--c) 45%, transparent);
+  }
+  28%,
+  30% {
+    translate: 126px 0;
+    opacity: 1;
+    color: var(--c);
+    border-color: var(--c);
+    box-shadow: 0 0 12px color-mix(in oklab, var(--c) 45%, transparent);
+  }
+  32% {
+    translate: 126px 0;
+    opacity: 0;
+  }
+  33% {
+    translate: 0 0;
+    opacity: 0;
+  }
+  36%,
+  100% {
+    translate: 0 0;
+    opacity: 1;
+    color: var(--muted);
+    border-color: color-mix(in oklab, var(--ink) 25%, transparent);
+    box-shadow: 0 0 0 transparent;
+  }
+}
+
+@keyframes xp-token-out {
+  0%,
+  61.9% {
+    translate: 0 0;
+    opacity: 1;
+    color: var(--muted);
+    border-color: color-mix(in oklab, var(--ink) 25%, transparent);
+    box-shadow: 0 0 0 transparent;
+  }
+  62% {
+    translate: 0 0;
+    color: var(--c);
+    border-color: var(--c);
+    box-shadow: 0 0 12px color-mix(in oklab, var(--c) 45%, transparent);
+  }
+  65%,
+  67% {
+    translate: -116px 0;
+    opacity: 1;
+    color: var(--c);
+    border-color: var(--c);
+    box-shadow: 0 0 12px color-mix(in oklab, var(--c) 45%, transparent);
+  }
+  69% {
+    translate: -116px 0;
+    opacity: 0;
+  }
+  70% {
+    translate: 0 0;
+    opacity: 0;
+  }
+  73%,
+  100% {
+    translate: 0 0;
+    opacity: 1;
+    color: var(--muted);
+    border-color: color-mix(in oklab, var(--ink) 25%, transparent);
+    box-shadow: 0 0 0 transparent;
+  }
+}
+
+/* Hermes: frames push onto the stack, a program counter steps -------- */
+.xp-hermes {
+  position: absolute;
+  inset: 0;
+}
+
+.xp-mono {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.xp-stack {
+  position: absolute;
+  top: 56px;
+  left: 18px;
+  right: 18px;
+  height: 100px;
+  border-bottom: 1px solid color-mix(in oklab, var(--ink) 25%, transparent);
+}
+
+.xp-frame {
+  --c: var(--accent);
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 24px;
+  padding-left: 10px;
+  border: 1px solid var(--c);
+  border-radius: 5px;
+  background: color-mix(in oklab, var(--c) 14%, var(--surface));
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  line-height: 22px;
+  color: var(--ink);
+  opacity: 0;
+}
+
+.xp-frame-0 {
+  bottom: 4px;
+  animation-name: xp-frame-0;
+}
+.xp-frame-1 {
+  bottom: 32px;
+  animation-name: xp-frame-1;
+}
+.xp-frame-2 {
+  bottom: 60px;
+  animation-name: xp-frame-2;
+}
+.xp-frame-render {
+  --c: var(--update);
+  bottom: 4px;
+  animation-name: xp-frame-render;
+}
+
+@keyframes xp-frame-0 {
+  0%,
+  32.9% {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+  33.5%,
+  40.5% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  42%,
+  100% {
+    opacity: 0;
+    translate: 0 0;
+  }
+}
+@keyframes xp-frame-1 {
+  0%,
+  34.7% {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+  35.3%,
+  40% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  41.5%,
+  100% {
+    opacity: 0;
+    translate: 0 0;
+  }
+}
+@keyframes xp-frame-2 {
+  0%,
+  38.3% {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+  38.9%,
+  39.5% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  41%,
+  100% {
+    opacity: 0;
+    translate: 0 0;
+  }
+}
+@keyframes xp-frame-render {
+  0%,
+  53.9% {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+  54.5%,
+  61% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  62.5%,
+  100% {
+    opacity: 0;
+    translate: 0 0;
+  }
+}
+
+.xp-bytecode {
+  position: absolute;
+  top: 190px;
+  left: 18px;
+  right: 18px;
+}
+
+.xp-bytecode .xp-mono {
+  position: relative;
+  display: block;
+  height: 20px;
+  line-height: 20px;
+  color: var(--muted);
+}
+
+.xp-bytecode b {
+  display: inline-block;
+  width: 88px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.xp-pc {
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  top: 0;
+  height: 20px;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+  animation-name: xp-pc;
+  animation-timing-function: step-end;
+}
+
+/* Lines 0–3 on the way in; "Ret" (line 4) as the update leaves */
+@keyframes xp-pc {
+  0%,
+  32.9% {
+    opacity: 0;
+    translate: 0 0;
+  }
+  33% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  34.8% {
+    translate: 0 20px;
+  }
+  36.6% {
+    translate: 0 40px;
+  }
+  38.4% {
+    translate: 0 60px;
+  }
+  41% {
+    opacity: 0;
+    translate: 0 60px;
+  }
+  59.3% {
+    opacity: 1;
+    translate: 0 80px;
+    background: color-mix(in oklab, var(--update) 18%, transparent);
+    box-shadow: inset 2px 0 0 var(--update);
+  }
+  62%,
+  100% {
+    opacity: 0;
+    translate: 0 80px;
+    background: color-mix(in oklab, var(--update) 18%, transparent);
+    box-shadow: inset 2px 0 0 var(--update);
+  }
+}
+
+/* Your code: onPress runs, the state flips, the render reads it ------ */
+.xp-code {
+  --top: 96px;
+  --lh: 16px;
+  position: absolute;
+  inset: 0;
+}
+
+.xp-code pre {
+  position: relative;
+  margin: 0;
+  padding: var(--top) 16px 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 9.5px;
+  line-height: var(--lh);
+  color: var(--muted);
+}
+
+.xp-line {
+  display: block;
+  height: var(--lh);
+}
+
+.xp-code .k {
+  color: var(--accent);
+}
+.xp-code .t {
+  color: var(--ink);
+  font-weight: 500;
+}
+.xp-code .s {
+  color: var(--ink);
+}
+
+.xp-hl {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+  opacity: 0;
+}
+
+/* Lines 5–6: onPress={() => setLiked(true)} */
+.xp-hl-press {
+  top: calc(var(--top) + 5 * var(--lh));
+  height: calc(2 * var(--lh));
+  animation-name: xp-hl-press;
+}
+
+/* Line 2: useState(false → true) */
+.xp-hl-state {
+  top: calc(var(--top) + 2 * var(--lh));
+  height: var(--lh);
+  animation-name: xp-hl-state;
+}
+
+/* Line 8: {liked ? "Liked" : "Like"} re-runs with the new state */
+.xp-hl-render {
+  top: calc(var(--top) + 8 * var(--lh));
+  height: var(--lh);
+  background: color-mix(in oklab, var(--update) 16%, transparent);
+  box-shadow: inset 2px 0 0 var(--update);
+  animation-name: xp-hl-render;
+}
+
+@keyframes xp-hl-press {
+  0%,
+  44.9%,
+  51%,
+  100% {
+    opacity: 0;
+  }
+  45%,
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes xp-hl-state {
+  0%,
+  49.9%,
+  56%,
+  100% {
+    opacity: 0;
+  }
+  50%,
+  55% {
+    opacity: 1;
+  }
+}
+
+@keyframes xp-hl-render {
+  0%,
+  53.9%,
+  59%,
+  100% {
+    opacity: 0;
+  }
+  54%,
+  58% {
+    opacity: 1;
+  }
+}
+
+.xp-state {
+  display: inline-grid;
+}
+
+.xp-state > span {
+  grid-area: 1 / 1;
+}
+
+.xp-stage .xp-state-false {
+  animation-name: xp-state-false;
+  animation-timing-function: step-end;
+}
+
+.xp-stage .xp-state-true {
+  animation-name: xp-state-true;
+  animation-timing-function: step-end;
+}
+
+/* Flips at 52%, flips back with the screen at the end of the cycle */
+@keyframes xp-state-false {
+  0%,
+  51.9% {
+    opacity: 1;
+  }
+  52%,
+  96.5% {
+    opacity: 0;
+  }
+  98%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes xp-state-true {
+  0%,
+  51.9% {
+    opacity: 0;
+  }
+  52%,
+  96.5% {
+    opacity: 1;
+  }
+  98%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Tap path (section below) ------------------------------------------- */
+.tap-dot {
+  animation: tap-run 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes tap-run {
+  0% {
+    left: 0%;
+    opacity: 0;
+  }
+  6%,
+  94% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+/* Smaller screens: scale the whole drawing down -------------------- */
+@media (max-width: 1279px) {
+  .xp-stage {
+    --z: 0.68;
+  }
+}
+
+@media (max-width: 1023px) {
+  .xp-stage {
+    --z: 0.54;
+  }
+}
+
+@media (max-width: 767px) {
+  .xp-stage {
+    --z: 0.4;
+  }
+  .xp-heading {
+    font-size: 30px;
+  }
+}
+
+@media (max-width: 520px) {
+  .xp-stage {
+    --z: 0.27;
+  }
+  .xp-heading {
+    font-size: 40px;
+  }
+}
+
+/* Reduced motion: spread out and still -------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .xp-stage *,
+  .tap-dot {
+    animation: none !important;
+  }
+  .xp-outline,
+  .xp-finger,
+  .xp-ripple,
+  .xp-pc,
+  .xp-hl,
+  .xp-frame,
+  .xp-btn-liked,
+  .xp-state-true,
+  .xp-text-new {
+    opacity: 0;
+  }
+}
