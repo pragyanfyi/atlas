@@ -67,7 +67,6 @@ export function ExplodedPhone({ className }: { className?: string }) {
               <div className="xp-face">
                 <Face />
               </div>
-              <i className="xp-hit" aria-hidden />
               <svg viewBox="0 0 232 480" className="xp-outline" aria-hidden>
                 <rect
                   x="1"
@@ -81,13 +80,6 @@ export function ExplodedPhone({ className }: { className?: string }) {
             </div>
           );
         })}
-        <i className="xp-beam" aria-hidden />
-        <i className="xp-packet is-event" aria-hidden />
-        <i className="xp-packet is-event is-trail" aria-hidden />
-        <i className="xp-packet is-event is-trail-2" aria-hidden />
-        <i className="xp-packet is-update" aria-hidden />
-        <i className="xp-packet is-update is-trail" aria-hidden />
-        <i className="xp-packet is-update is-trail-2" aria-hidden />
       </div>
       {/* Labels sit outside the 3D plane, in one row under the drawing */}
       {layers.map((layer) => (
