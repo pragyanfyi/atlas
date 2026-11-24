@@ -191,7 +191,7 @@
 .xp-label {
   position: absolute;
   left: calc(var(--cx) + var(--k) * var(--sx));
-  top: calc(100% - var(--label-h) - var(--pad) + 20px);
+  top: calc(100% - var(--label-h) - var(--pad) + 34px);
   font-size: 15px;
   font-weight: 500;
   white-space: nowrap;
