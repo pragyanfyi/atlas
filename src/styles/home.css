@@ -1805,3 +1805,23 @@
     opacity: 0;
   }
 }
+
+/* Tap path (section below) ------------------------------------------- */
+.tap-dot {
+  animation: tap-run 6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes tap-run {
+  0% {
+    left: 0%;
+    opacity: 0;
+  }
+  6%,
+  94% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
