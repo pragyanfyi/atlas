@@ -26,6 +26,7 @@ type LayerId = (typeof layers)[number]["id"];
 
 const faces: Partial<Record<LayerId, () => ReactNode>> = {
   host: HostFace,
+  fabric: FabricFace,
 };
 
 const step = (k: number) => ({ "--k": k }) as CSSProperties;
@@ -126,6 +127,51 @@ function HostFace() {
 
       <i className="xp-home xp-ios" />
       <i className="xp-gesture xp-android" />
+    </div>
+  );
+}
+
+// Shadow tree nodes: [class, label, centre x, centre y]
+const nodes = [
+  ["root", "Root", 116, 64],
+  ["header", "View", 40, 124],
+  ["list", "FlatList", 116, 124],
+  ["press", "Pressable", 192, 124],
+] as const;
+
+function FabricFace() {
+  return (
+    <div className="xp-fabric">
+      <svg viewBox="0 0 232 480" className="xp-tree" aria-hidden>
+        <path className="xp-edge" d="M116 74 L40 114" />
+        <path className="xp-edge" d="M116 74 L116 114" />
+        <path className="xp-edge xp-edge-press" d="M116 74 L192 114" />
+        <path className="xp-edge xp-edge-text" d="M192 134 L192 174" />
+        {nodes.map(([id, label, x, y]) => (
+          <g key={id} className={`xp-node xp-node-${id}`}>
+            <rect x={x - 28} y={y - 10} width="56" height="20" rx="5" />
+            <text x={x} y={y + 3}>
+              {label}
+            </text>
+          </g>
+        ))}
+        <g className="xp-node xp-node-text">
+          <rect x="164" y="174" width="56" height="20" rx="5" />
+          <text className="xp-text-old" x="192" y="187">
+            Text "Like"
+          </text>
+          <text className="xp-text-new" x="192" y="187">
+            Text "Liked"
+          </text>
+        </g>
+      </svg>
+
+      {/* Yoga layout of the screen, below the tree */}
+      <span className="xp-box xp-box-header" />
+      <span className="xp-box xp-box-list" />
+      <span className="xp-box xp-box-btn">
+        <span className="xp-box xp-box-text" />
+      </span>
     </div>
   );
 }

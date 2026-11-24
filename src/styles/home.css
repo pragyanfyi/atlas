@@ -366,3 +366,86 @@
   border-radius: 999px;
   background: var(--muted);
 }
+
+/* Fabric: hit-test the shadow tree, then clone the changed path ----- */
+.xp-fabric {
+  position: absolute;
+  inset: 0;
+}
+
+.xp-tree {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.xp-edge {
+  fill: none;
+  stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  stroke-width: 1;
+}
+
+.xp-node rect {
+  fill: var(--surface);
+  stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+  stroke-width: 1;
+}
+
+.xp-node text {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 8px;
+  text-anchor: middle;
+  fill: var(--ink);
+}
+
+/* Yoga layout: the boxes the tree lays out into */
+.xp-box {
+  position: absolute;
+  border: 1px dashed color-mix(in oklab, var(--ink) 30%, transparent);
+  border-radius: 6px;
+}
+
+.xp-box-header {
+  inset: 236px 14px auto;
+  height: 26px;
+}
+
+.xp-box-list {
+  inset: 270px 14px auto;
+  height: 104px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 25px,
+    color-mix(in oklab, var(--ink) 14%, transparent) 25px 26px
+  );
+}
+
+/* Mirrors .xp-btn, a few px larger */
+.xp-box-btn {
+  left: 22px;
+  right: 22px;
+  top: calc(var(--tap-y) - 23px);
+  height: 46px;
+  display: grid;
+  place-items: center;
+  animation-name: xp-node-btn;
+}
+
+:root[data-platform="material"] .xp-box-btn {
+  left: auto;
+  right: 16px;
+  width: 96px;
+  top: calc(var(--tap-y) - 28px);
+  height: 56px;
+}
+
+/* The Text box: re-measured wider when "Like" becomes "Liked" */
+.xp-box-text {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  border-radius: 3px;
+  animation-name: xp-node-text;
+}
