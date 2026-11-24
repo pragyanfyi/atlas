@@ -449,3 +449,263 @@
   border-radius: 3px;
   animation-name: xp-node-text;
 }
+
+/* JSI: C++ calls straight into JS, and JS straight back -------------- */
+.xp-jsi {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: center;
+}
+
+.xp-side {
+  position: absolute;
+  top: 44px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.xp-side-cpp {
+  left: 20px;
+}
+
+.xp-side-js {
+  right: 20px;
+}
+
+.xp-divider {
+  position: absolute;
+  top: 40px;
+  bottom: 40px;
+  left: 50%;
+  border-left: 1px dashed color-mix(in oklab, var(--ink) 40%, transparent);
+}
+
+.xp-lane {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  height: 0;
+  border-top: 1px solid color-mix(in oklab, var(--ink) 25%, transparent);
+}
+
+.xp-lane-in {
+  top: 180px;
+}
+
+.xp-lane-out {
+  top: 260px;
+}
+
+.xp-token {
+  position: absolute;
+  padding: 3px 7px;
+  border: 1px solid color-mix(in oklab, var(--ink) 25%, transparent);
+  border-radius: 6px;
+  background: var(--surface);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  line-height: 12px;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+/* onPress(e): C++ → JS on the way in */
+.xp-token-in {
+  --c: var(--accent);
+  left: 16px;
+  top: 170px;
+  animation-name: xp-token-in;
+}
+
+/* cloneNode(): JS → C++ on the way out */
+.xp-token-out {
+  --c: var(--update);
+  left: 132px;
+  top: 250px;
+  animation-name: xp-token-out;
+}
+
+/* Hermes: frames push onto the stack, a program counter steps -------- */
+.xp-hermes {
+  position: absolute;
+  inset: 0;
+}
+
+.xp-mono {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.xp-stack {
+  position: absolute;
+  top: 56px;
+  left: 18px;
+  right: 18px;
+  height: 100px;
+  border-bottom: 1px solid color-mix(in oklab, var(--ink) 25%, transparent);
+}
+
+.xp-frame {
+  --c: var(--accent);
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 24px;
+  padding-left: 10px;
+  border: 1px solid var(--c);
+  border-radius: 5px;
+  background: color-mix(in oklab, var(--c) 14%, var(--surface));
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  line-height: 22px;
+  color: var(--ink);
+  opacity: 0;
+}
+
+.xp-frame-0 {
+  bottom: 4px;
+  animation-name: xp-frame-0;
+}
+.xp-frame-1 {
+  bottom: 32px;
+  animation-name: xp-frame-1;
+}
+.xp-frame-2 {
+  bottom: 60px;
+  animation-name: xp-frame-2;
+}
+.xp-frame-render {
+  --c: var(--update);
+  bottom: 4px;
+  animation-name: xp-frame-render;
+}
+
+.xp-bytecode {
+  position: absolute;
+  top: 190px;
+  left: 18px;
+  right: 18px;
+}
+
+.xp-bytecode .xp-mono {
+  position: relative;
+  display: block;
+  height: 20px;
+  line-height: 20px;
+  color: var(--muted);
+}
+
+.xp-bytecode b {
+  display: inline-block;
+  width: 88px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.xp-pc {
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  top: 0;
+  height: 20px;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+  animation-name: xp-pc;
+  animation-timing-function: step-end;
+}
+
+/* Your code: onPress runs, the state flips, the render reads it ------ */
+.xp-code {
+  --top: 96px;
+  --lh: 16px;
+  position: absolute;
+  inset: 0;
+}
+
+.xp-code pre {
+  position: relative;
+  margin: 0;
+  padding: var(--top) 16px 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 9.5px;
+  line-height: var(--lh);
+  color: var(--muted);
+}
+
+.xp-line {
+  display: block;
+  height: var(--lh);
+}
+
+.xp-code .k {
+  color: var(--accent);
+}
+.xp-code .t {
+  color: var(--ink);
+  font-weight: 500;
+}
+.xp-code .s {
+  color: var(--ink);
+}
+
+.xp-hl {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+  opacity: 0;
+}
+
+/* Lines 5–6: onPress={() => setLiked(true)} */
+.xp-hl-press {
+  top: calc(var(--top) + 5 * var(--lh));
+  height: calc(2 * var(--lh));
+  animation-name: xp-hl-press;
+}
+
+/* Line 2: useState(false → true) */
+.xp-hl-state {
+  top: calc(var(--top) + 2 * var(--lh));
+  height: var(--lh);
+  animation-name: xp-hl-state;
+}
+
+/* Line 8: {liked ? "Liked" : "Like"} re-runs with the new state */
+.xp-hl-render {
+  top: calc(var(--top) + 8 * var(--lh));
+  height: var(--lh);
+  background: color-mix(in oklab, var(--update) 16%, transparent);
+  box-shadow: inset 2px 0 0 var(--update);
+  animation-name: xp-hl-render;
+}
+
+.xp-state {
+  display: inline-grid;
+}
+
+.xp-state > span {
+  grid-area: 1 / 1;
+}
+
+.xp-stage .xp-state-false {
+  animation-name: xp-state-false;
+  animation-timing-function: step-end;
+}
+
+.xp-stage .xp-state-true {
+  animation-name: xp-state-true;
+  animation-timing-function: step-end;
+}

@@ -24,9 +24,12 @@ const layers = [
 
 type LayerId = (typeof layers)[number]["id"];
 
-const faces: Partial<Record<LayerId, () => ReactNode>> = {
+const faces: Record<LayerId, () => ReactNode> = {
   host: HostFace,
   fabric: FabricFace,
+  jsi: JsiFace,
+  hermes: HermesFace,
+  code: CodeFace,
 };
 
 const step = (k: number) => ({ "--k": k }) as CSSProperties;
@@ -48,7 +51,9 @@ export function ExplodedPhone({ className }: { className?: string }) {
               data-layer={layer.id}
               style={step(layer.k)}
             >
-              <div className="xp-face">{Face ? <Face /> : null}</div>
+              <div className="xp-face">
+                <Face />
+              </div>
             </div>
           );
         })}
@@ -172,6 +177,127 @@ function FabricFace() {
       <span className="xp-box xp-box-btn">
         <span className="xp-box xp-box-text" />
       </span>
+    </div>
+  );
+}
+
+function JsiFace() {
+  return (
+    <div className="xp-jsi">
+      <span className="xp-side xp-side-cpp">C++</span>
+      <span className="xp-side xp-side-js">JS</span>
+      <i className="xp-divider" />
+      <span className="xp-lane xp-lane-in" />
+      <span className="xp-lane xp-lane-out" />
+      <span className="xp-token xp-token-in">onPress(e)</span>
+      <span className="xp-token xp-token-out">cloneNode()</span>
+    </div>
+  );
+}
+
+const bytecode = [
+  ["GetById", 'r1, r0, "onPress"'],
+  ["LoadConstTrue", "r2"],
+  ["GetById", 'r3, r0, "setLiked"'],
+  ["Call1", "r0, r3, r2"],
+  ["Ret", "r0"],
+];
+
+const frames = ["dispatchEvent", "onPress", "setLiked"];
+
+function HermesFace() {
+  return (
+    <div className="xp-hermes">
+      <div className="xp-stack">
+        {frames.map((f, i) => (
+          <span key={f} className={`xp-frame xp-frame-${i}`}>
+            {f}
+          </span>
+        ))}
+        <span className="xp-frame xp-frame-render">Like()</span>
+      </div>
+      <div className="xp-bytecode">
+        <i className="xp-pc" />
+        {bytecode.map(([op, args]) => (
+          <span key={args} className="xp-mono">
+            <b>{op}</b> {args}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// One entry per line; the highlight bars in home.css are placed by line number.
+const k = (t: string) => <span className="k">{t}</span>;
+const t = (s: string) => <span className="t">{s}</span>;
+const code: ReactNode[] = [
+  <>
+    {k("function")} Like() {"{"}
+  </>,
+  <>
+    {"  "}
+    {k("const")} [liked, setLiked] =
+  </>,
+  <>
+    {"    "}useState(
+    <span className="xp-state">
+      <span className="xp-state-false">{k("false")}</span>
+      <span className="xp-state-true">{k("true")}</span>
+    </span>
+    );
+  </>,
+  <>
+    {"  "}
+    {k("return")} (
+  </>,
+  <>
+    {"    "}
+    {t("<Pressable")}
+  </>,
+  <>
+    {"      "}onPress={"{() =>"}
+  </>,
+  <>
+    {"        "}setLiked({k("true")}){"}"}
+    {t(">")}
+  </>,
+  <>
+    {"      "}
+    {t("<Text>")}
+  </>,
+  <>
+    {"        "}
+    {"{liked ? "}
+    <span className="s">"Liked"</span> : <span className="s">"Like"</span>
+    {"}"}
+  </>,
+  <>
+    {"      "}
+    {t("</Text>")}
+  </>,
+  <>
+    {"    "}
+    {t("</Pressable>")}
+  </>,
+  <>{"  );"}</>,
+  <>{"}"}</>,
+];
+
+function CodeFace() {
+  return (
+    <div className="xp-code">
+      <i className="xp-hl xp-hl-press" />
+      <i className="xp-hl xp-hl-state" />
+      <i className="xp-hl xp-hl-render" />
+      <pre>
+        {code.map((line, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: static lines
+          <span key={i} className="xp-line">
+            {line}
+          </span>
+        ))}
+      </pre>
     </div>
   );
 }
