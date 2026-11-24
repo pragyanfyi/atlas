@@ -5,6 +5,12 @@
  * Platform-specific bits key off <html data-platform>.
  */
 
+/* Platform-only nodes ------------------------------------------------- */
+:root[data-platform="material"] .xp-ios,
+:root:not([data-platform="material"]) .xp-android {
+  display: none;
+}
+
 /* Stage --------------------------------------------------------------- */
 /*
  * One tilted plane (bottom-right corner toward the viewer). Layers are
@@ -124,4 +130,239 @@
   width: calc(22px - var(--k) * var(--sx));
   height: 1px;
   background: color-mix(in oklab, var(--ink) 18%, transparent);
+}
+
+/* Host views (the screen) -------------------------------------------- */
+.xp-screen {
+  position: absolute;
+  inset: 0;
+  font-size: 11px;
+  color: var(--ink);
+}
+
+.xp-status {
+  position: absolute;
+  inset: 14px 22px auto;
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.xp-status-icons {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.xp-status-icons i {
+  width: 9px;
+  height: 6px;
+  border-radius: 1.5px;
+  background: var(--ink);
+  opacity: 0.8;
+}
+
+.xp-island {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  width: 68px;
+  height: 20px;
+  margin-left: -34px;
+  border-radius: 999px;
+  background: var(--ink);
+}
+
+.xp-punch {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  width: 11px;
+  height: 11px;
+  margin-left: -5.5px;
+  border-radius: 999px;
+  background: var(--ink);
+}
+
+.xp-title {
+  position: absolute;
+  top: 54px;
+  left: 18px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.xp-appbar {
+  position: absolute;
+  top: 46px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 40px;
+  padding: 0 16px;
+  font-size: 16px;
+}
+
+.xp-appbar-icon {
+  position: relative;
+  width: 14px;
+  height: 10px;
+  border-block: 1.5px solid var(--ink);
+}
+
+.xp-appbar-icon::after {
+  content: "";
+  position: absolute;
+  inset: 2.5px 0 auto;
+  height: 1.5px;
+  background: var(--ink);
+}
+
+.xp-rows {
+  position: absolute;
+  top: 100px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.xp-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.xp-avatar {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--color-fd-secondary);
+}
+
+.xp-lines {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.xp-lines i {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-fd-secondary);
+}
+
+.xp-lines i:first-child {
+  background: color-mix(in oklab, var(--ink) 22%, transparent);
+}
+
+/* The button: pressed, then flips to "Liked" when the update lands */
+.xp-btn {
+  --off: var(--color-fd-secondary);
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  top: calc(var(--tap-y) - 21px);
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--off);
+  font-size: 13px;
+  font-weight: 600;
+  animation-name: xp-btn;
+}
+
+/* Material: an extended FAB in the corner */
+:root[data-platform="material"] .xp-btn {
+  left: auto;
+  right: 18px;
+  width: 92px;
+  top: calc(var(--tap-y) - 26px);
+  height: 52px;
+  border-radius: 16px;
+}
+
+.xp-btn > span {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.xp-btn-like {
+  color: var(--ink);
+  animation-name: xp-like;
+}
+
+.xp-btn-liked {
+  color: var(--color-fd-primary-foreground);
+  animation-name: xp-liked;
+}
+
+.xp-heart {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+}
+
+.xp-btn-liked .xp-heart {
+  fill: currentColor;
+  animation-name: xp-heart;
+}
+
+.xp-finger {
+  position: absolute;
+  left: var(--tap-x);
+  top: var(--tap-y);
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--ink) 16%, transparent);
+  border: 1.5px solid color-mix(in oklab, var(--ink) 55%, transparent);
+  animation-name: xp-finger;
+}
+
+.xp-ripple {
+  position: absolute;
+  left: var(--tap-x);
+  top: var(--tap-y);
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--ink) 20%, transparent);
+  animation-name: xp-ripple;
+}
+
+.xp-home {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  width: 84px;
+  height: 4px;
+  margin-left: -42px;
+  border-radius: 999px;
+  background: var(--ink);
+}
+
+.xp-gesture {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  width: 64px;
+  height: 3px;
+  margin-left: -32px;
+  border-radius: 999px;
+  background: var(--muted);
 }
