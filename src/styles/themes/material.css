@@ -1,0 +1,104 @@
+/*
+ * Atlas theme: Material (Android)
+ *
+ * Colours are the Material 3 baseline scheme (seed #6750A4), with the
+ * surface-container roles M3 uses for layered surfaces. Only colour and
+ * radius are themed. Fonts and layout are left to Fumadocs.
+ *
+ * Activated by <html data-platform="material">. Defines the same Fumadocs
+ * tokens as ios.css, so the two can be swapped at runtime.
+ */
+
+/* 1. Raw platform palette (private to this theme) --------------------- */
+:root[data-platform="material"] {
+  --md-primary: #6750a4;
+  --md-on-primary: #ffffff;
+  --md-secondary-container: #e8def8;
+  --md-on-secondary-container: #4a4458;
+  --md-error: #b3261e;
+
+  --md-surface: #fef7ff;
+  --md-on-surface: #1d1b20;
+  --md-on-surface-variant: #49454f;
+  --md-outline-variant: #cac4d0;
+  --md-surface-container-low: #f7f2fa;
+  --md-surface-container: #f3edf7;
+  --md-surface-container-high: #ece6f0;
+
+  /*
+   * M3 has no warning/success roles: these are extended colours, taken at
+   * tone 40 (light) and tone 80 (dark) of their tonal palettes, as M3 does
+   * for its own key colours.
+   */
+  --md-ext-success: #386a20;
+  --md-ext-warning: #8b5000;
+  --md-ext-idea: #6d5e00;
+
+  color-scheme: light;
+}
+
+:root[data-platform="material"].dark {
+  --md-primary: #d0bcff;
+  --md-on-primary: #381e72;
+  --md-secondary-container: #4a4458;
+  --md-on-secondary-container: #e8def8;
+  --md-error: #f2b8b5;
+
+  --md-surface: #141218;
+  --md-on-surface: #e6e0e9;
+  --md-on-surface-variant: #cac4d0;
+  --md-outline-variant: #49454f;
+  --md-surface-container-low: #1d1b20;
+  --md-surface-container: #211f26;
+  --md-surface-container-high: #2b2930;
+
+  --md-ext-success: #9cd67d;
+  --md-ext-warning: #ffb870;
+  --md-ext-idea: #dbc66e;
+
+  color-scheme: dark;
+}
+
+/* 2. Map the palette onto Fumadocs tokens (same for light and dark) --- */
+:root[data-platform="material"],
+:root[data-platform="material"].dark {
+  --color-fd-background: var(--md-surface);
+  --color-fd-foreground: var(--md-on-surface);
+  --color-fd-muted: var(--md-surface-container);
+  --color-fd-muted-foreground: var(--md-on-surface-variant);
+  --color-fd-popover: var(--md-surface-container-high); /* menus */
+  --color-fd-popover-foreground: var(--md-on-surface);
+  --color-fd-card: var(--md-surface-container-low);
+  --color-fd-card-foreground: var(--md-on-surface);
+  --color-fd-border: var(--md-outline-variant);
+  --color-fd-primary: var(--md-primary);
+  --color-fd-primary-foreground: var(--md-on-primary);
+  --color-fd-secondary: var(--md-surface-container-high);
+  --color-fd-secondary-foreground: var(--md-on-surface);
+  /* Active nav items: M3's navigation indicator colour */
+  --color-fd-accent: var(--md-secondary-container);
+  --color-fd-accent-foreground: var(--md-on-secondary-container);
+  --color-fd-ring: var(--md-primary);
+
+  /* Semantic: callouts, alerts, diffs */
+  --color-fd-info: var(--md-primary);
+  --color-fd-warning: var(--md-ext-warning);
+  --color-fd-error: var(--md-error);
+  --color-fd-success: var(--md-ext-success);
+  --color-fd-idea: var(--md-ext-idea);
+
+  /* Radius: M3 shape scale (Tailwind rounded-* utilities) */
+  --radius-xs: 4px; /* extra-small */
+  --radius-sm: 8px; /* small */
+  --radius-md: 12px; /* medium */
+  --radius-lg: 16px; /* large */
+  --radius-xl: 20px; /* large-increased */
+  --radius-2xl: 28px; /* extra-large */
+}
+
+/* neutral.css re-tints the sidebar in dark mode via an #id selector */
+:root[data-platform="material"].dark #nd-sidebar {
+  --color-fd-muted: var(--md-surface-container);
+  --color-fd-secondary: var(--md-surface-container-high);
+  --color-fd-muted-foreground: var(--md-on-surface-variant);
+}
