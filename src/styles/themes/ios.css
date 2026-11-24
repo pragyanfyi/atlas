@@ -5,8 +5,8 @@
  * with the light and dark variants iOS itself uses. Only colour and radius
  * are themed. Fonts and layout are left to Fumadocs.
  *
- * Activated by <html data-platform="ios">. A sibling file (material.css)
- * will define the same tokens under data-platform="material".
+ * Activated by <html data-platform="ios">. material.css defines the same
+ * tokens under data-platform="material"; the platform switch swaps them.
  */
 
 /* 1. Raw platform palette (private to this theme) --------------------- */

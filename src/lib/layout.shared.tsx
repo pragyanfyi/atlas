@@ -1,5 +1,6 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { Logo } from "@/components/logo";
+import { PlatformAndThemeSwitch } from "@/components/platform-switch";
 import { wordmark } from "./fonts";
 import { appName, gitConfig } from "./shared";
 
@@ -17,6 +18,7 @@ export function baseOptions(): BaseLayoutProps {
         </span>
       ),
     },
+    slots: { themeSwitch: PlatformAndThemeSwitch },
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
   };
 }
