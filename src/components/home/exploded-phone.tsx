@@ -26,7 +26,7 @@ import { cn } from "@/lib/cn";
  * CSS alone: `.xp-ios` and `.xp-android` nodes are shown or hidden.
  */
 
-// k = steps away from the screen: 0 is top left, 4 is bottom right.
+// k = steps from the screen: 0 is top left, 4 is bottom right.
 const layers = [
   { id: "code", title: "Your code", k: 4 },
   { id: "hermes", title: "Hermes", k: 3 },

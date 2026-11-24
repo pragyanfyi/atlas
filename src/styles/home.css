@@ -36,10 +36,10 @@
 /* Stage --------------------------------------------------------------- */
 /*
  * One tilted plane: the screen's top-left corner is furthest away and its
- * bottom-right corner is closest to the viewer. Layers are offset inside
- * the plane by (-a, +b) per step (a is negative, so each step goes right
- * along the short side), which lands each one below and to the right of
- * the last without overlapping. Orthographic on purpose: plain trig sizes
+ * bottom-right corner is closest to the viewer. The screen sits top left;
+ * each other layer is offset inside the plane by (-a, +b) per step (a is
+ * negative, so it moves along the short side), which lands it down and to
+ * the right of the last without overlapping. Orthographic on purpose: plain trig sizes
  * the stage and places the labels, so change a, b, rx or rz (0–90deg) and
  * everything else follows.
  *
@@ -69,9 +69,16 @@
     (var(--w) / 2 * sin(var(--rz)) + var(--h) / 2 * cos(var(--rz))) *
     cos(var(--rx))
   );
-  /* Centre of the screen layer (k = 0), top left */
-  --cx: calc(var(--pad) + var(--hx));
-  --cy: calc(var(--pad) + var(--hy));
+  /* Stage size, and the centre of the screen layer (k = 0) */
+  --W: calc(2 * (var(--pad) + var(--hx)) + max(4 * var(--sx), -4 * var(--sx)));
+  --H: calc(
+    2 *
+    (var(--pad) + var(--hy)) +
+    max(4 * var(--sy), -4 * var(--sy)) +
+    var(--label-h)
+  );
+  --cx: calc(var(--pad) + var(--hx) + max(0px, -4 * var(--sx)));
+  --cy: calc(var(--pad) + var(--hy) + max(0px, -4 * var(--sy)));
 
   --accent: var(--color-fd-primary);
   --update: var(--color-fd-success);
@@ -88,8 +95,8 @@
   position: relative;
   flex: none;
   zoom: var(--z);
-  width: calc(2 * var(--cx) + 4 * var(--sx));
-  height: calc(2 * var(--cy) + 4 * var(--sy) + var(--label-h));
+  width: var(--W);
+  height: var(--H);
 }
 
 :root[data-platform="material"] .xp-stage {
@@ -98,8 +105,8 @@
 
 .xp-plane {
   /* How far the stage centre is from the screen layer's final spot */
-  --dx: calc(2 * var(--sx));
-  --dy: calc(2 * var(--sy) + var(--label-h) / 2);
+  --dx: calc(var(--W) / 2 - var(--cx));
+  --dy: calc((var(--H) - var(--label-h)) / 2 - var(--cy));
 
   position: absolute;
   left: calc(var(--cx) - var(--w) / 2);
@@ -144,7 +151,7 @@
       calc(-1 * var(--k) * var(--a)),
       calc(var(--k) * var(--b))
     )
-    translateZ(0);
+    translateZ(calc(var(--k) * -6px));
   animation: xp-open var(--intro) cubic-bezier(0.65, 0, 0.35, 1) 0.3s both;
 }
 
@@ -162,7 +169,7 @@
         calc(-1 * var(--k) * var(--a)),
         calc(var(--k) * var(--b))
       )
-      translateZ(0);
+      translateZ(calc(var(--k) * -6px));
   }
 }
 
@@ -184,7 +191,7 @@
 .xp-label {
   position: absolute;
   left: calc(var(--cx) + var(--k) * var(--sx));
-  top: calc(var(--cy) + 4 * var(--sy) + var(--hy) + 20px);
+  top: calc(100% - var(--label-h) - var(--pad) + 20px);
   font-size: 15px;
   font-weight: 500;
   white-space: nowrap;
