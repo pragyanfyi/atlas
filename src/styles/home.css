@@ -717,6 +717,37 @@
   border-radius: 16px;
 }
 
+@keyframes xp-btn {
+  0%,
+  3% {
+    scale: 1;
+    background: var(--off);
+  }
+  5.5% {
+    scale: 0.93;
+  }
+  9% {
+    scale: 1;
+  }
+  82% {
+    scale: 1;
+    background: var(--off);
+  }
+  84% {
+    scale: 1.06;
+    background: var(--accent);
+  }
+  87%,
+  96% {
+    scale: 1;
+    background: var(--accent);
+  }
+  99%,
+  100% {
+    background: var(--off);
+  }
+}
+
 .xp-btn > span {
   grid-area: 1 / 1;
   display: inline-flex;
@@ -734,6 +765,35 @@
   animation-name: xp-liked;
 }
 
+@keyframes xp-like {
+  0%,
+  82.5% {
+    opacity: 1;
+  }
+  83%,
+  96.5% {
+    opacity: 0;
+  }
+  98%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes xp-liked {
+  0%,
+  82.5% {
+    opacity: 0;
+  }
+  83%,
+  96.5% {
+    opacity: 1;
+  }
+  98%,
+  100% {
+    opacity: 0;
+  }
+}
+
 .xp-heart {
   width: 12px;
   height: 12px;
@@ -745,6 +805,20 @@
 .xp-btn-liked .xp-heart {
   fill: currentColor;
   animation-name: xp-heart;
+}
+
+@keyframes xp-heart {
+  0%,
+  83% {
+    scale: 0.4;
+  }
+  86% {
+    scale: 1.35;
+  }
+  89%,
+  100% {
+    scale: 1;
+  }
 }
 
 .xp-finger {
@@ -760,6 +834,30 @@
   animation-name: xp-finger;
 }
 
+@keyframes xp-finger {
+  0% {
+    opacity: 0;
+    scale: 1.5;
+  }
+  2.5% {
+    opacity: 1;
+    scale: 1;
+  }
+  5.5% {
+    opacity: 1;
+    scale: 0.8;
+  }
+  8% {
+    opacity: 0.8;
+    scale: 1;
+  }
+  10%,
+  100% {
+    opacity: 0;
+    scale: 1.1;
+  }
+}
+
 .xp-ripple {
   position: absolute;
   left: var(--tap-x);
@@ -770,6 +868,23 @@
   border-radius: 999px;
   background: color-mix(in oklab, var(--ink) 20%, transparent);
   animation-name: xp-ripple;
+}
+
+@keyframes xp-ripple {
+  0%,
+  4.5% {
+    opacity: 0;
+    scale: 0.2;
+  }
+  5% {
+    opacity: 0.8;
+    scale: 0.2;
+  }
+  13%,
+  100% {
+    opacity: 0;
+    scale: 1.8;
+  }
 }
 
 .xp-home {
@@ -827,6 +942,212 @@
   fill: var(--ink);
 }
 
+/* On the way in: Root → Pressable (blue). On the way out: the new Text,
+   then every ancestor up to Root is cloned (green) */
+.xp-node-root rect {
+  animation-name: xp-n-root;
+}
+.xp-node-press rect {
+  animation-name: xp-n-press;
+}
+.xp-node-text rect {
+  animation-name: xp-n-text;
+}
+.xp-edge-press {
+  animation-name: xp-e-press;
+}
+.xp-edge-text {
+  animation-name: xp-e-text;
+}
+
+.xp-stage .xp-text-old {
+  animation-name: xp-state-false;
+  animation-timing-function: step-end;
+}
+.xp-stage .xp-text-new {
+  opacity: 0;
+  animation-name: xp-text-new;
+  animation-timing-function: step-end;
+}
+
+@keyframes xp-text-new {
+  0%,
+  65.9% {
+    opacity: 0;
+  }
+  66%,
+  96.5% {
+    opacity: 1;
+  }
+  98%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes xp-n-root {
+  0% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  11.9% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  12% {
+    stroke: var(--accent);
+    fill: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  }
+  20% {
+    stroke: var(--accent);
+    fill: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  }
+  21.5% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  68.9% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  69% {
+    stroke: var(--update);
+    fill: color-mix(in oklab, var(--update) 22%, var(--surface));
+  }
+  78% {
+    stroke: var(--update);
+    fill: color-mix(in oklab, var(--update) 22%, var(--surface));
+  }
+  79.5% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  100% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+}
+@keyframes xp-n-press {
+  0% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  13.9% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  14% {
+    stroke: var(--accent);
+    fill: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  }
+  20% {
+    stroke: var(--accent);
+    fill: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  }
+  21.5% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  67.4% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  67.5% {
+    stroke: var(--update);
+    fill: color-mix(in oklab, var(--update) 22%, var(--surface));
+  }
+  78% {
+    stroke: var(--update);
+    fill: color-mix(in oklab, var(--update) 22%, var(--surface));
+  }
+  79.5% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  100% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+}
+@keyframes xp-n-text {
+  0% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  65.9% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  66% {
+    stroke: var(--update);
+    fill: color-mix(in oklab, var(--update) 22%, var(--surface));
+  }
+  78% {
+    stroke: var(--update);
+    fill: color-mix(in oklab, var(--update) 22%, var(--surface));
+  }
+  79.5% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+  100% {
+    stroke: color-mix(in oklab, var(--ink) 35%, transparent);
+    fill: var(--surface);
+  }
+}
+@keyframes xp-e-press {
+  0% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  12.9% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  13% {
+    stroke: var(--accent);
+  }
+  20% {
+    stroke: var(--accent);
+  }
+  21.5% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  67.9% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  68% {
+    stroke: var(--update);
+  }
+  78% {
+    stroke: var(--update);
+  }
+  79.5% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  100% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+}
+@keyframes xp-e-text {
+  0% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  66.9% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  67% {
+    stroke: var(--update);
+  }
+  78% {
+    stroke: var(--update);
+  }
+  79.5% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+  100% {
+    stroke: color-mix(in oklab, var(--ink) 30%, transparent);
+  }
+}
+
 /* Yoga layout: the boxes the tree lays out into */
 .xp-box {
   position: absolute;
@@ -875,6 +1196,72 @@
   height: 16px;
   border-radius: 3px;
   animation-name: xp-node-text;
+}
+
+@keyframes xp-node-btn {
+  0%,
+  13.9% {
+    border-style: dashed;
+    border-color: color-mix(in oklab, var(--ink) 30%, transparent);
+    background: transparent;
+  }
+  14%,
+  19% {
+    border-style: solid;
+    border-color: var(--accent);
+    background: color-mix(in oklab, var(--accent) 14%, transparent);
+  }
+  21%,
+  69.9% {
+    border-style: dashed;
+    border-color: color-mix(in oklab, var(--ink) 30%, transparent);
+    background: transparent;
+  }
+  70%,
+  76% {
+    border-style: solid;
+    border-color: var(--update);
+    background: color-mix(in oklab, var(--update) 10%, transparent);
+  }
+  78%,
+  100% {
+    border-style: dashed;
+    border-color: color-mix(in oklab, var(--ink) 30%, transparent);
+    background: transparent;
+  }
+}
+
+@keyframes xp-node-text {
+  0%,
+  70% {
+    width: 28px;
+    border-style: dashed;
+    border-color: color-mix(in oklab, var(--ink) 30%, transparent);
+    background: transparent;
+  }
+  70.1% {
+    border-style: solid;
+    border-color: var(--update);
+    background: color-mix(in oklab, var(--update) 25%, transparent);
+  }
+  73%,
+  76% {
+    width: 58px;
+    border-style: solid;
+    border-color: var(--update);
+    background: color-mix(in oklab, var(--update) 25%, transparent);
+  }
+  79%,
+  96% {
+    width: 58px;
+    border-style: dashed;
+    border-color: color-mix(in oklab, var(--ink) 30%, transparent);
+    background: transparent;
+  }
+  99%,
+  100% {
+    width: 28px;
+  }
 }
 
 /* JSI: C++ calls straight into JS, and JS straight back -------------- */
