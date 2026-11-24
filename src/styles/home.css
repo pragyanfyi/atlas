@@ -1825,3 +1825,59 @@
     opacity: 0;
   }
 }
+
+/* Smaller screens: scale the whole drawing down -------------------- */
+@media (max-width: 1279px) {
+  .xp-stage {
+    --z: 0.68;
+  }
+}
+
+@media (max-width: 1023px) {
+  .xp-stage {
+    --z: 0.54;
+  }
+}
+
+@media (max-width: 767px) {
+  .xp-stage {
+    --z: 0.4;
+    --label-w: 240px;
+  }
+  .xp-label {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 520px) {
+  .xp-stage {
+    --z: 0.25;
+    --label-w: 300px;
+  }
+  .xp-label {
+    font-size: 46px;
+  }
+  .xp-label-line {
+    height: 3px;
+  }
+}
+
+/* Reduced motion: spread out and still -------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .xp-stage *,
+  .tap-dot {
+    animation: none !important;
+  }
+  .xp-packet,
+  .xp-hit,
+  .xp-finger,
+  .xp-ripple,
+  .xp-pc,
+  .xp-hl,
+  .xp-frame,
+  .xp-btn-liked,
+  .xp-state-true,
+  .xp-text-new {
+    opacity: 0;
+  }
+}
