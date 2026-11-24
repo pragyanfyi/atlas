@@ -85,18 +85,6 @@ export function ExplodedPhone({ className }: { className?: string }) {
           );
         })}
       </div>
-      {/* Labels sit outside the 3D plane, in one row under the drawing */}
-      {layers.map((layer) => (
-        <span
-          key={layer.id}
-          className="xp-label"
-          data-layer={layer.id}
-          style={step(layer.k)}
-          aria-hidden
-        >
-          {layer.title}
-        </span>
-      ))}
     </div>
   );
 }

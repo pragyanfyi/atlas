@@ -40,7 +40,7 @@
  * each other layer is offset inside the plane by (-a, +b) per step (a is
  * negative, so it moves along the short side), which lands it down and to
  * the right of the last without overlapping. Orthographic on purpose: plain trig sizes
- * the stage and places the labels, so change a, b, rx or rz (0–90deg) and
+ * the stage, so change a, b, rx or rz (0–90deg) and
  * everything else follows.
  *
  * A local vector (x, y) lands on screen at
@@ -54,7 +54,6 @@
   --a: -260px;
   --b: 40px;
   --pad: 32px;
-  --label-h: 56px;
   --z: 0.86;
 
   /* One step on screen (sx > 0: right, sy > 0: down) */
@@ -71,12 +70,7 @@
   );
   /* Stage size, and the centre of the screen layer (k = 0) */
   --W: calc(2 * (var(--pad) + var(--hx)) + max(4 * var(--sx), -4 * var(--sx)));
-  --H: calc(
-    2 *
-    (var(--pad) + var(--hy)) +
-    max(4 * var(--sy), -4 * var(--sy)) +
-    var(--label-h)
-  );
+  --H: calc(2 * (var(--pad) + var(--hy)) + max(4 * var(--sy), -4 * var(--sy)));
   --cx: calc(var(--pad) + var(--hx) + max(0px, -4 * var(--sx)));
   --cy: calc(var(--pad) + var(--hy) + max(0px, -4 * var(--sy)));
 
@@ -106,7 +100,7 @@
 .xp-plane {
   /* How far the stage centre is from the screen layer's final spot */
   --dx: calc(var(--W) / 2 - var(--cx));
-  --dy: calc((var(--H) - var(--label-h)) / 2 - var(--cy));
+  --dy: calc(var(--H) / 2 - var(--cy));
 
   position: absolute;
   left: calc(var(--cx) - var(--w) / 2);
@@ -185,124 +179,6 @@
 
 .xp-layer[data-layer="host"] .xp-face {
   border: 6px solid color-mix(in oklab, var(--ink) 88%, transparent);
-}
-
-/* Labels: flat, in one row under the drawing, centred under each layer */
-.xp-label {
-  position: absolute;
-  left: calc(var(--cx) + var(--k) * var(--sx));
-  top: calc(100% - var(--label-h) - var(--pad) + 34px);
-  font-size: 15px;
-  font-weight: 500;
-  white-space: nowrap;
-  color: var(--muted);
-  translate: -50% 0;
-  animation:
-    xp-fade 0.6s ease-out calc(var(--intro) + var(--k) * 0.08s) both,
-    var(--lbl) var(--cycle) ease var(--start) infinite;
-}
-
-@keyframes xp-fade {
-  from {
-    opacity: 0;
-    translate: -50% 6px;
-  }
-  to {
-    opacity: 1;
-    translate: -50% 0;
-  }
-}
-
-/* Each label lights up while its layer is working (same timeline) */
-.xp-label[data-layer="host"] {
-  --lbl: xp-lbl-host;
-}
-.xp-label[data-layer="fabric"] {
-  --lbl: xp-lbl-fabric;
-}
-.xp-label[data-layer="jsi"] {
-  --lbl: xp-lbl-jsi;
-}
-.xp-label[data-layer="hermes"] {
-  --lbl: xp-lbl-hermes;
-}
-.xp-label[data-layer="code"] {
-  --lbl: xp-lbl-code;
-}
-
-@keyframes xp-lbl-host {
-  0%,
-  10%,
-  84%,
-  96% {
-    color: var(--ink);
-  }
-  13%,
-  80%,
-  99%,
-  100% {
-    color: var(--muted);
-  }
-}
-@keyframes xp-lbl-fabric {
-  0%,
-  10%,
-  22%,
-  64%,
-  78%,
-  100% {
-    color: var(--muted);
-  }
-  12%,
-  20%,
-  66%,
-  76% {
-    color: var(--ink);
-  }
-}
-@keyframes xp-lbl-jsi {
-  0%,
-  22%,
-  31%,
-  60%,
-  68%,
-  100% {
-    color: var(--muted);
-  }
-  24%,
-  29%,
-  62%,
-  66% {
-    color: var(--ink);
-  }
-}
-@keyframes xp-lbl-hermes {
-  0%,
-  31%,
-  43%,
-  52%,
-  63%,
-  100% {
-    color: var(--muted);
-  }
-  33%,
-  41%,
-  54%,
-  61% {
-    color: var(--ink);
-  }
-}
-@keyframes xp-lbl-code {
-  0%,
-  43%,
-  60%,
-  100% {
-    color: var(--muted);
-  }
-  45%,
-  58% {
-    color: var(--ink);
-  }
 }
 
 /* Headings: each layer's title lies on the tilted plane just past the
@@ -1870,9 +1746,6 @@
   .xp-stage {
     --z: 0.4;
   }
-  .xp-label {
-    font-size: 28px;
-  }
   .xp-heading {
     font-size: 30px;
   }
@@ -1881,9 +1754,6 @@
 @media (max-width: 520px) {
   .xp-stage {
     --z: 0.27;
-  }
-  .xp-label {
-    font-size: 32px;
   }
   .xp-heading {
     font-size: 40px;
