@@ -91,7 +91,7 @@ Next comes the commit. Two things happen:
 - **Layout.** Yoga, React Native's layout engine, turns your flexbox styles into exact sizes and positions for every node that changed. [Layout](/docs/foundations/layout) covers how.
 - **The new tree becomes the next one to show.** From here, the main thread can pick it up.
 
-Commit runs off the main thread, usually on the JavaScript thread straight after render.
+Commit runs on the JavaScript thread, straight after render. [Threads](/docs/foundations/threads) covers which thread runs what.
 
 ## 6. Mount
 
