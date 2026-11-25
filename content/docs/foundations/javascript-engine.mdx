@@ -3,4 +3,205 @@ title: "The JavaScript Engine"
 description: "What runs your JavaScript, why Hermes compiles ahead of time, and where Hermes stands today."
 ---
 
-{/* Note: Hermes predates the New Architecture and is independent of it. Say clearly that it is still the engine under the New Architecture, and describe in plain words where Hermes stands today. */}
+A JavaScript engine is the program that reads JavaScript and runs it. Browsers have one built in. A React Native app ships its own, inside the app: Hermes, an engine Meta built for React Native.
+
+Hermes runs all your JavaScript, on the JavaScript thread. Every event handler, every render, every Promise callback goes through it.
+
+The rule to take away: **Hermes turns your JavaScript into bytecode when you build the app, so the phone skips that work at launch.**
+
+<HelpsToKnow>
+
+- [Threads](/docs/foundations/threads): the JavaScript thread, where Hermes runs.
+- [JSI](/docs/new-architecture/jsi): how your JavaScript reaches native code through the engine.
+- [Metro and the Bundle](/docs/foundations/metro-and-the-bundle): how your files become one bundle before Hermes sees them.
+
+</HelpsToKnow>
+
+## What an engine does
+
+Your JavaScript starts as text. Before any of it can run, an engine has to do four jobs:
+
+- **Parse.** Read the text and check it is valid JavaScript.
+- **Compile.** Turn it into instructions the engine can run. For Hermes these are bytecode: compact, low-level instructions for the engine, not for the CPU.
+- **Run.** Step through the instructions, one at a time.
+- **Manage memory.** Keep track of your objects, and free the ones nothing uses any more. This is the garbage collector.
+
+The first two jobs are pure overhead. The user sees nothing until they're done. In a large app, parsing and compiling the whole bundle can take a noticeable part of startup.
+
+## Why React Native has its own engine
+
+Browser engines, like V8 in Chrome, are built for peak speed. They watch which code runs often and compile it to machine code while the app runs. That is called just-in-time (JIT) compilation. It makes long-running code fast, but it costs startup time and memory, and phones, especially low-end Android phones, have little of both.
+
+iOS also doesn't let apps generate machine code while they run, so a JIT isn't available to React Native there anyway.
+
+Hermes makes the opposite trade. It is built for:
+
+- **Fast startup.** It parses and compiles ahead of time, at build time.
+- **Low memory.** It has no JIT keeping machine code around, and its garbage collector is tuned for phones.
+- **Small apps.** The engine itself adds little to the download.
+
+The cost is peak speed. Hermes interprets bytecode instead of compiling hot code to machine code, so a long, CPU-heavy loop can run slower than it would in a browser. For most apps, startup and memory matter more.
+
+## How it works
+
+<Diagram
+  name="foundations/javascript-engine/compile-ahead"
+  alt="Two rows, each read left to right from build time on your machine to launch on the phone. Top row, an engine that reads source: the JavaScript bundle ships as text, and at every launch the phone has to parse, then compile, then run. The parse and compile steps are red. Bottom row, Hermes: at build time the Hermes compiler turns the bundle into bytecode, which ships in the app, and at launch the phone loads the bytecode and runs it, so it starts sooner."
+/>
+
+### At build time
+
+When you make a release build, two steps run on your machine, or on a build server like EAS Build:
+
+1. [Metro](/docs/foundations/metro-and-the-bundle) bundles your code and its dependencies into one JavaScript file.
+2. The Hermes compiler parses that file, compiles it to bytecode, and writes a bytecode file. The bytecode, not your JavaScript, ships inside the app.
+
+The parsing and compiling happen once, on a fast machine, instead of on every phone at every launch.
+
+### At launch
+
+When the app starts, Hermes opens the bytecode file and starts running it right away. There is nothing left to parse or compile. It also reads only the parts of the file it needs, so code that never runs costs little memory.
+
+<UnderTheHood title="why only the needed parts load">
+
+The Hermes team designed the bytecode file so the engine can map it into memory instead of reading it in. The operating system then loads each page of the file only when the engine first touches it. A function that never runs is never read from storage, and the OS can drop clean pages under memory pressure and read them again later.
+
+This is part of why a large bundle hurts less under Hermes than under an engine that reads source: size still matters, but you pay mostly for the code you run.
+
+</UnderTheHood>
+
+### In development
+
+Development is different. Metro serves your code as plain JavaScript, so it can reload fast when you save. Hermes compiles it on the phone as it goes, and development mode adds extra checks on top.
+
+That makes JavaScript much slower in development than in a release build. Measure performance in release builds only.
+
+## Where the engine sits
+
+<Diagram
+  name="foundations/javascript-engine/where-the-engine-sits"
+  alt="A stack. Inside the JavaScript thread lane, your code and React, in orange, sit on Hermes, in purple, which runs bytecode, owns every JavaScript value and collects garbage. Below the lane, JSI connects Hermes to the Fabric renderer and TurboModules, in purple, which connect to native views and native modules, in green. Anything outside JavaScript reaches Hermes through JSI."
+/>
+
+Your code never talks to Hermes directly, and neither does React. They're just JavaScript running on it.
+
+Everything outside JavaScript reaches Hermes through [JSI](/docs/new-architecture/jsi), a C++ interface to the engine. The renderer reads your component tree through it, and native modules expose their methods through it. JSI is written against an engine, not against Hermes, which is why React Native could support another engine at all.
+
+Hermes owns every JavaScript value. Native code can hold a reference to one through JSI, but only on the JavaScript thread, because Hermes runs one thing at a time. [Threads](/docs/foundations/threads) covers what that means for your app.
+
+## Where Hermes stands today
+
+Hermes is the engine React Native uses by default, on iOS and Android. Expo projects use it too. Most apps never choose an engine; they get Hermes.
+
+### It is still the engine under the New Architecture
+
+Hermes and the New Architecture are separate pieces, and people often mix them up.
+
+- **The New Architecture** changed how JavaScript talks to native code: [JSI](/docs/new-architecture/jsi), [Fabric](/docs/new-architecture/fabric) and [TurboModules](/docs/new-architecture/turbomodules) replaced [the bridge](/docs/history/the-bridge).
+- **Hermes** is what runs the JavaScript on one side of that conversation.
+
+Hermes came first, and it ran under the old architecture too. When the New Architecture became the default, Hermes stayed the engine underneath it.
+
+### How it got here
+
+- **2019:** Meta open-sources Hermes, for Android only.
+- **React Native 0.64 (2021):** Hermes runs on iOS too.
+- **React Native 0.70 (2022):** Hermes becomes the default engine.
+- **React Native 0.79 (2025):** JavaScriptCore, the engine React Native used before Hermes, moves out of React Native into a community package.
+- **React Native 0.82 (2025):** Hermes V1 arrives as an experimental opt-in.
+- **React Native 0.84 (2026):** Hermes V1 becomes the default.
+
+### Hermes V1
+
+Hermes V1 is the current generation of Hermes, with a reworked compiler and engine. The React Native team reports faster JavaScript and lower memory use. In early tests on a large production app, bundle load time and time to interactive improved by a few percent to about 9%, depending on the platform.
+
+If you were already on Hermes, nothing changes in your code. You get Hermes V1 by upgrading React Native.
+
+### What isn't in it yet
+
+The Hermes team is working on two bigger changes: a JIT, and compiling typed JavaScript straight to machine code, a project once called Static Hermes. Neither is part of Hermes V1 as React Native ships it. This moves fast, so check the React Native release notes for the current state.
+
+### Other engines
+
+JavaScriptCore still works, through the `@react-native-community/javascriptcore` package, maintained by the community. Almost every app uses Hermes, and React Native's own features are tested on it first. Use another engine only if you have a specific reason.
+
+## How to check which engine you're on
+
+Hermes adds a global object, `HermesInternal`. If it exists, your code is running on Hermes.
+
+```ts title="Which engine is running"
+const isHermes = () => !!global.HermesInternal;
+
+// The exact Hermes version
+HermesInternal?.getRuntimeProperties?.()["OSS Release Version"];
+```
+
+## How it fits with other pieces
+
+- **[Threads](/docs/foundations/threads):** Hermes runs on the JavaScript thread, one task at a time. Its garbage collector does most of its work on a background thread, alongside your code.
+- **[JSI](/docs/new-architecture/jsi)** is how native code calls into Hermes, and how your JavaScript calls native code.
+- **[Metro and the Bundle](/docs/foundations/metro-and-the-bundle)** produces the single JavaScript file the Hermes compiler turns into bytecode.
+- **[EAS Update](/docs/expo/eas-update)** ships new JavaScript to installed apps. In a release build the update is bytecode, so it has to match the Hermes version in the app.
+- **[App Startup](/docs/shipping/app-startup):** loading bytecode is one step of launch. Native setup and your first render are others.
+- **[Debugging](/docs/shipping/debugging):** React Native DevTools connects straight to Hermes on the device or simulator.
+
+## Common pitfalls
+
+### Measuring in development mode
+
+In development, Hermes compiles your code on the phone, and React adds extra checks. Your code can run several times slower than in release. A screen that feels slow in development may be fine for users. Profile a release build before you change code.
+
+### Assuming every JavaScript feature exists
+
+Hermes doesn't follow browsers feature for feature. It leaves out a few rarely used parts of the language on purpose, like `with` statements and `eval` that reads local variables. New standard APIs can also arrive later than in browsers, and support for `Intl`, the formatting and language APIs, has varied between versions and platforms.
+
+If a library depends on a newer API, check it in a release build on both platforms, and add a polyfill where it's missing.
+
+### Code that reads its own source
+
+In a browser, calling `toString()` on a function returns its source code. Hermes runs bytecode, so there is no source to return.
+
+```ts title="No source at runtime"
+function add(a, b) {
+  return a + b;
+}
+
+add.toString(); // "function add(a0, a1) { [bytecode] }"
+```
+
+Libraries that parse function source, for example to read argument names, break under Hermes. Few modern libraries do this, but older ones sometimes do.
+
+### Bytecode built for a different Hermes
+
+Bytecode is tied to the version of Hermes that produced it. When the bytecode format changes, Hermes can't run bytecode from an older compiler. Normally this never shows, because your build compiles bytecode with the same Hermes it ships.
+
+It does show when JavaScript is delivered separately from the app, as with over-the-air updates. An update compiled for a newer React Native can fail to load in an app built with an older one. That is why EAS Update ties every update to a runtime version, and only sends it to app builds with the same one.
+
+## When you don't need this
+
+Most apps never touch the engine. Hermes is on by default, the build compiles bytecode for you, and nothing in your code depends on it. Come back to this when startup feels slow, when a library fails with a missing feature, or when your release build and development build behave differently.
+
+<WhatThisReplaced>
+
+Before Hermes, React Native ran on JavaScriptCore, the engine inside Safari. It read your bundle as source and parsed it on every launch. iOS used the system's copy, and Android apps had to bundle their own, older copy, which added to app size.
+
+Debugging used to run on a different engine too. "Debug JS Remotely" ran your code in Chrome's V8, on your computer, and sent calls to the phone over [the bridge](/docs/history/the-bridge). Timing, features and bugs could differ from what users ran. React Native DevTools now debugs the Hermes in the app. [Timeline](/docs/history/timeline) covers when each piece changed.
+
+</WhatThisReplaced>
+
+## Where to go next
+
+- [Threads](/docs/foundations/threads): the thread Hermes runs on, and what blocks it.
+- [JSI](/docs/new-architecture/jsi): how native code and Hermes call each other.
+- [Metro and the Bundle](/docs/foundations/metro-and-the-bundle): the step before the Hermes compiler.
+- [App Startup](/docs/shipping/app-startup): everything that runs between a tap on the icon and the first screen.
+
+## Sources
+
+- [Using Hermes](https://reactnative.dev/docs/hermes), React Native docs
+- [React Native 0.84](https://reactnative.dev/blog/2026/02/11/react-native-0.84), React Native blog
+- [React Native 0.82](https://reactnative.dev/blog/2025/10/08/react-native-0.82), React Native blog
+- [React Native 0.79](https://reactnative.dev/blog/2025/04/08/react-native-0.79), React Native blog
+- [Hermes: An open source JavaScript engine optimized for mobile apps](https://engineering.fb.com/2019/07/12/android/hermes/), Engineering at Meta
+- [Hermes language features](https://github.com/facebook/hermes/blob/static_h/doc/Features.md), Hermes repository
+- [@react-native-community/javascriptcore](https://github.com/react-native-community/javascriptcore), GitHub
