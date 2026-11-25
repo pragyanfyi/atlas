@@ -9,6 +9,7 @@ import { createRelativeLink } from "fumadocs-ui/mdx";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/components/mdx";
+import { PageFeedback } from "@/components/page-feedback";
 import { PageFooterNav, PageNavButtons } from "@/components/page-nav";
 import { getPageImageUrl } from "@/lib/shared";
 import { source } from "@/lib/source";
@@ -38,6 +39,11 @@ export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
           })}
         />
       </DocsBody>
+      <PageFeedback
+        path={page.path}
+        url={page.url}
+        lastModified={page.data.lastModified}
+      />
       <PageFooterNav previous={previous} next={next} />
     </DocsPage>
   );

@@ -8,6 +8,9 @@ const docs = defineDocs({
   dir: "content/docs",
   docs: {
     schema: pageSchema,
+    // Read from git history at build time. Needs full history: on Vercel set
+    // VERCEL_DEEP_CLONE=true, otherwise the shallow clone gives wrong dates.
+    lastModified: true,
     postprocess: {
       includeProcessedMarkdown: true,
     },
