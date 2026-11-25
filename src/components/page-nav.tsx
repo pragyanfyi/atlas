@@ -57,7 +57,7 @@ export function PageFooterNav({
   return (
     <nav
       aria-label="Pagination"
-      className="mt-12 flex items-start justify-between gap-4 border-t pt-8"
+      className="mt-8 flex items-start justify-between gap-4 border-t pt-8"
     >
       {previous ? (
         <Link href={previous.url} className="group flex flex-col gap-1">
