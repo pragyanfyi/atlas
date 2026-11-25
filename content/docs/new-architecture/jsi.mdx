@@ -2,3 +2,191 @@
 title: "JSI"
 description: "How JavaScript calls native code directly and synchronously, and when that is dangerous."
 ---
+
+JSI, the JavaScript Interface, is a C++ API that sits between the JavaScript engine and the rest of the app. It lets JavaScript hold a reference to a C++ object and call its methods directly, and it lets C++ create JavaScript values and call JavaScript functions.
+
+Everything in the New Architecture talks to JavaScript through JSI: native modules, the renderer, and libraries like Reanimated and MMKV.
+
+The rule to take away: **a JSI call runs right away, on the thread that makes it, and the caller waits for it to finish.**
+
+<HelpsToKnow>
+
+- [Threads](/docs/foundations/threads): the JavaScript thread runs one thing at a time.
+- [The JavaScript Engine](/docs/foundations/javascript-engine): Hermes, the engine JSI talks to.
+- [Native Code in Your App](/docs/foundations/native-code): where C++, Swift and Kotlin live in your project.
+
+</HelpsToKnow>
+
+## Why it exists
+
+Before JSI, JavaScript and native code talked over [the bridge](/docs/history/the-bridge). Every call was turned into JSON, put in a queue and sent across later. The answer came back the same way, as JSON, in a callback.
+
+That design had three costs:
+
+- **Everything was async.** JavaScript couldn't ask a question and get the answer in the same line of code.
+- **Everything was copied.** Each value was serialized on one side and parsed on the other. Large or frequent data, like camera frames or scroll events, made the bridge a bottleneck.
+- **Only plain data could cross.** A native module couldn't hand JavaScript a reference to a native object, such as an open database. It could only send a copy of some data.
+
+JSI removes all three. A call is a direct function call. Values can stay where they are, and JavaScript gets a reference to them.
+
+<Diagram
+  name="new-architecture/jsi/sync-vs-async-call"
+  alt="Two rows. Before, the bridge: getToken() in JavaScript, then turn into JSON, queue and send later, native module, JSON back, and a callback later. Caption: async only, the value is copied out and copied back. Now, JSI: const t = getToken() makes a direct call to a host function in C++, which calls native code, and an arrow returns the value to the caller in the same call."
+/>
+
+## How it works
+
+JSI is an interface, not an engine. The engine implements it. Hermes, the engine React Native ships with, implements JSI, so React Native's C++ core can work with Hermes without knowing how Hermes works inside. Any engine with a JSI implementation can run React Native. Community packages provide one for JavaScriptCore and for V8.
+
+JSI gives C++ two ways to show up in JavaScript.
+
+### Host functions
+
+A host function is a C++ function that JavaScript sees as a normal function. Native code creates it and installs it, often on the global object. When JavaScript calls it, the engine runs the C++ code directly and hands its return value back.
+
+```ts title="Using a host function"
+// Installed by native code at startup. To JavaScript it is just a function.
+declare function multiply(a: number, b: number): number;
+
+const result = multiply(6, 7); // 42, returned in the same call
+```
+
+There is no queue and no JSON. The numbers go in as JavaScript values, and the result comes out as one.
+
+<UnderTheHood title="what installing a host function looks like">
+
+Most apps never write this. Libraries and generated code do it for you. But the shape helps:
+
+```cpp title="install.cpp"
+auto multiply = jsi::Function::createFromHostFunction(
+  runtime,
+  jsi::PropNameID::forAscii(runtime, "multiply"),
+  2, // number of arguments
+  [](jsi::Runtime& rt, const jsi::Value& thisValue,
+     const jsi::Value* args, size_t count) -> jsi::Value {
+    return args[0].asNumber() * args[1].asNumber();
+  });
+
+runtime.global().setProperty(runtime, "multiply", std::move(multiply));
+```
+
+`runtime` is the JavaScript engine instance. Every JSI call takes it, because every JavaScript value belongs to one runtime.
+
+</UnderTheHood>
+
+### Host objects
+
+A host object is a C++ object that JavaScript sees as a normal object. When JavaScript reads a property, the engine asks the C++ object for it.
+
+This is how a library hands you something that lives in native memory. Storage libraries like react-native-mmkv work this way:
+
+```ts title="Using a host object"
+// Returned by a native library. To JavaScript it is just an object.
+const storage = openStorage();
+
+storage.set("token", "abc123");
+const token = storage.getString("token"); // no await, no callback
+```
+
+`storage` isn't a copy of the data. It's a handle to a C++ object, and each method call goes straight to it. That is why the read can be synchronous.
+
+### Sharing memory
+
+JSI can also expose a block of native memory to JavaScript as an `ArrayBuffer`, without copying it. The React Native docs use camera frames as the example: a single frame can be around 30 MB, which is roughly 2 GB a second at video speed. Copying that through JSON was never an option. Handing JavaScript a reference to the buffer is.
+
+Shared memory means both sides can see changes, so the code on each side has to agree on who writes when.
+
+### Calling JavaScript from C++
+
+JSI works in the other direction too. C++ can create JavaScript strings, objects and arrays, and call JavaScript functions. That is how Fabric delivers a tap to your `onPress`, and how a native module resolves a Promise.
+
+There is one condition: **the runtime can only be used from one thread at a time.** In React Native, that is the JavaScript thread. Native code running on another thread must not touch JavaScript values directly. It queues a function onto the JavaScript thread, and that function does the JavaScript work.
+
+## Sync for quick work, async for slow work
+
+JSI makes synchronous calls possible. It doesn't make them free. A synchronous call holds the JavaScript thread for as long as the native code takes.
+
+So well-built native APIs split work by how long it takes:
+
+- **Quick work** answers in the same call. Reading a value from memory, checking a flag, doing small maths.
+- **Slow work** starts on another thread and returns a Promise straight away. Reading files, decoding images, network calls, big database queries. When the work finishes, the result is queued back to the JavaScript thread to resolve the Promise.
+
+<Diagram
+  name="new-architecture/jsi/slow-work-off-thread"
+  alt="Two swimlanes, the JavaScript thread above and a background thread below. On the JavaScript thread, getString() calls a host function that reads memory and returns at once. Then loadImage() calls a host function that returns a Promise. An arrow goes down to Decode the image on the background thread, and another arrow goes back up to Resolve Promise on the JavaScript thread, labelled queued back to the JavaScript thread."
+/>
+
+TurboModules make this choice visible in their type spec. A method that returns a plain value is synchronous. A method that returns a Promise is asynchronous. [TurboModules](/docs/new-architecture/turbomodules) covers how.
+
+## How it fits with other pieces
+
+JSI is the floor the rest of the New Architecture stands on.
+
+- **[Hermes](/docs/foundations/javascript-engine)** implements JSI. It is still the engine under the New Architecture.
+- **[TurboModules](/docs/new-architecture/turbomodules)** are native modules exposed through JSI. They load lazily, when JavaScript first uses them.
+- **[Codegen](/docs/new-architecture/codegen)** reads your TypeScript spec and writes the C++ glue between JSI and your native code, so you don't write host functions by hand.
+- **[Fabric](/docs/new-architecture/fabric)**, the renderer, uses JSI to take React's output and to deliver native events back to JavaScript.
+- **[Bridgeless mode](/docs/new-architecture/bridgeless)** is what you get once everything uses JSI: the bridge isn't started at all.
+- **[The Expo Modules API](/docs/expo/expo-modules-api)** sits on JSI too. You write Swift or Kotlin, and it handles the JSI side.
+
+Some libraries use JSI for things the bridge couldn't do at all. Reanimated runs small functions, called worklets, in a second JavaScript runtime on the UI thread, so animations keep going while the JavaScript thread is busy. VisionCamera passes camera frames to JavaScript without copying them. [Animations](/docs/rendering-and-state/animations) covers the first.
+
+## Common pitfalls
+
+### A slow synchronous call freezes the app
+
+A synchronous call that takes 200 ms holds the JavaScript thread for 200 ms. Taps wait, renders wait, and timers fire late. It is the same problem as any long JavaScript task, but harder to spot, because the slow part is in native code and the call looks like one cheap line.
+
+Treat a synchronous native call like a function that runs on the JavaScript thread. If it touches the disk, the network or a lot of data, it should return a Promise.
+
+### A synchronous call that waits on the main thread
+
+Some native work has to run on the main thread, like anything that reads or changes a UIKit or Android view object. If a synchronous call needs it, the JavaScript thread waits for the main thread. When the main thread is busy, with a heavy layout pass or a big list scrolling in, your JavaScript stalls too.
+
+Prefer async methods for anything that needs the main thread.
+
+### Touching JavaScript from the wrong thread
+
+Native code that calls a JavaScript function, or reads a JavaScript value, from a background thread breaks the one-thread rule. The result is a crash, and often not a clean one: it happens only sometimes, somewhere deep in the engine.
+
+If you see random crashes inside Hermes after adding a native module, check where its callbacks run. Results must be queued back to the JavaScript thread.
+
+### Crashes on reload
+
+A full reload in development throws the JavaScript runtime away and makes a new one. Native code that kept a JavaScript function or object from the old runtime now holds something that no longer exists. Using it crashes.
+
+Well-written libraries guard against this. If a crash only happens after you press reload, a native module holding onto old JavaScript values is a likely cause.
+
+<UnderTheHood title="why host objects shouldn't touch JavaScript when they're freed">
+
+A host object is freed when the JavaScript garbage collector decides it's no longer used. The C++ destructor runs from inside the garbage collector, and you don't control which thread that happens on. So a destructor must not call back into JavaScript or use the runtime. Clean up native resources only.
+
+</UnderTheHood>
+
+## When you don't need this
+
+Most apps never touch JSI directly. You use it through libraries, and you write native code with the [Expo Modules API](/docs/expo/expo-modules-api) or a [TurboModule](/docs/new-architecture/turbomodules) spec, which generate the JSI side for you.
+
+Writing raw JSI makes sense for a few things: wrapping an existing C++ library, sharing large buffers, or a hot path where every microsecond counts. Even then, the rules above apply.
+
+<WhatThisReplaced>
+
+JSI replaced [the bridge](/docs/history/the-bridge), the asynchronous message queue between JavaScript and native code. On the bridge, every call was serialized to JSON, batched, and handled later, and only plain data could cross. [Legacy native modules](/docs/history/legacy-native-modules) were built on it. The New Architecture has been the default since React Native 0.76, and recent versions run on it alone.
+
+</WhatThisReplaced>
+
+## Where to go next
+
+- [TurboModules](/docs/new-architecture/turbomodules): native modules built on JSI.
+- [Codegen](/docs/new-architecture/codegen): the generated glue between your spec and JSI.
+- [Fabric](/docs/new-architecture/fabric): how the renderer uses JSI.
+- [Bridgeless Mode](/docs/new-architecture/bridgeless): what's left when the bridge is gone.
+- [The Life of a Tap](/docs/foundations): one event crossing JSI and back.
+
+## Sources
+
+- [About the New Architecture](https://reactnative.dev/docs/the-new-architecture/landing-page), React Native docs
+- [The New Architecture is here](https://reactnative.dev/blog/2024/10/23/the-new-architecture-is-here), React Native blog
+- [Glossary](https://reactnative.dev/architecture/glossary), React Native docs
+- [React Native 0.82](https://reactnative.dev/blog/2025/10/08/react-native-0.82), React Native blog
+- [jsi.h](https://github.com/facebook/react-native/blob/main/packages/react-native/ReactCommon/jsi/jsi/jsi.h), React Native source
