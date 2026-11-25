@@ -2,3 +2,164 @@
 title: "The Life of a Tap"
 description: "Follow one tap through the whole stack, from your finger to the screen and back."
 ---
+
+A tap in a React Native app is a round trip. Native code catches the tap, your JavaScript decides what should change, and native code draws the change.
+
+This page follows one tap through that trip, step by step. Every layer it passes through has its own page in Atlas. Here you see how they connect.
+
+The rule to take away: **anything that holds up the JavaScript thread holds up the tap.**
+
+## The example
+
+A like button. Tapping it fills the heart.
+
+```tsx title="LikeButton.tsx"
+function LikeButton() {
+  const [liked, setLiked] = useState(false);
+
+  return (
+    <Pressable onPress={() => setLiked(true)}>
+      <Heart filled={liked} />
+    </Pressable>
+  );
+}
+```
+
+Here is the whole trip at once. The rest of the page walks through it.
+
+<Diagram
+  name="foundations/index/the-round-trip"
+  alt="Two swimlanes, the main thread above and the JavaScript thread below. On the main thread, Touch and hit test leads to Event dispatch. An arrow labelled JSI goes down to onPress and setLiked(true) on the JavaScript thread, then to Render, then to Commit and layout. An arrow labelled changes goes back up to Mount on the main thread, then to Next frame."
+/>
+
+## Two threads
+
+The trip moves between two threads. A thread is a line of work the device runs one step at a time.
+
+- **The main thread**, also called the UI thread. It receives touches and is the only thread allowed to change native views.
+- **The JavaScript thread.** It runs your JavaScript, one task at a time, in [Hermes, the JavaScript engine](/docs/foundations/javascript-engine).
+
+There are other threads, but these two explain the tap. [Threads](/docs/foundations/threads) covers the rest.
+
+## 1. The finger lands
+
+The operating system sees a finger on the glass and hands the touch to your app's main thread.
+
+There is no web view here. `<Pressable>` and `<Heart>` became real native views: a `UIView` on iOS, an `android.view.View` on Android. These are [host components](/docs/foundations/host-components).
+
+React Native's touch handler finds which native view sits under the finger. That is the hit test. Each native view knows which React component it came from, so React Native can name the target.
+
+## 2. The event crosses to JavaScript
+
+Fabric, React Native's renderer, wraps the touch in an event. Fabric is written in C++, so the same code runs on iOS and Android.
+
+The event can't run yet. Your handler lives in JavaScript, so the event waits in a queue for the JavaScript thread. When that thread is free, Fabric calls into JavaScript through [JSI](/docs/new-architecture/jsi), an interface that lets C++ call JavaScript functions directly.
+
+A tap is more than one event. The finger going down and the finger lifting are separate touches, and each makes the same trip. `Pressable` turns them into its own callbacks:
+
+1. Finger down: `onPressIn`.
+2. Finger up: `onPressOut`, then `onPress`.
+
+So `onPress` fires when the finger lifts, not when it lands.
+
+<UnderTheHood title="who decides which component gets the tap">
+
+Every touch goes to JavaScript first, and React Native's [gesture responder system](https://reactnative.dev/docs/gesture-responder-system) decides which component handles it. Components ask to become the "responder", and a parent can take over from a child.
+
+That is why a `Pressable` inside a `ScrollView` stops pressing when you drag. Once the finger moves far enough, the scroll view becomes the responder. `Pressable` gets `onPressOut`, but never `onPress`.
+
+</UnderTheHood>
+
+## 3. Your handler runs
+
+Hermes runs `onPress`, and `onPress` calls `setLiked(true)`.
+
+Calling `setLiked` doesn't change the screen. It tells React that `LikeButton` needs to render again. If the handler sets more state, React groups the updates and renders once, after the handler returns.
+
+## 4. React renders
+
+React calls `LikeButton` again. This time `liked` is `true`, so it returns a filled `<Heart>`.
+
+Then React Native turns that result into a **shadow tree**: a tree in C++ with one node for each native view, holding its props and, later, its size and position. React Native doesn't edit the old tree in place. It builds new nodes for the parts that changed and reuses the rest.
+
+Rendering costs time on the JavaScript thread, and the cost grows with how much re-renders. [What a Render Costs](/docs/rendering-and-state/render-cost) covers that.
+
+## 5. Commit: layout and a new tree
+
+Next comes the commit. Two things happen:
+
+- **Layout.** Yoga, React Native's layout engine, turns your flexbox styles into exact sizes and positions for every node that changed. [Layout](/docs/foundations/layout) covers how.
+- **The new tree becomes the next one to show.** From here, the main thread can pick it up.
+
+Commit runs off the main thread, usually on the JavaScript thread straight after render.
+
+## 6. Mount
+
+React Native compares the new tree with the one on screen and works out the smallest list of changes. For this tap, the list is short: give the heart its filled look.
+
+Only the main thread may change native views, so the list goes there, and the main thread applies it. That is the mount. [Fabric](/docs/new-architecture/fabric) covers this pipeline in depth.
+
+## 7. The next frame
+
+The screen redraws on a fixed beat: every 16.7 ms on a 60 Hz screen, every 8.3 ms on a 120 Hz screen. On the next redraw after the mount, the operating system draws the updated view.
+
+The filled heart appears. The trip is over.
+
+When both threads are free, the whole trip fits in a frame or two, and the tap feels instant.
+
+## What this explains
+
+Once you know the trip, a lot of everyday behaviour becomes predictable.
+
+### A busy JavaScript thread delays taps
+
+The JavaScript thread runs one task at a time. If it is busy with something long, like sorting a big list or parsing a large response, the tap's event waits until the task ends.
+
+<Diagram
+  name="foundations/index/busy-js-thread"
+  alt="Two swimlanes over a time axis. On the main thread, Touch, then a long box saying scrolling and native animations keep running, then Mount. On the JavaScript thread, a long red box labelled A long task, sorting 10,000 rows. A dashed red arrow labelled waits for the JavaScript thread goes from Touch to onPress, which only starts after the long task. Then Render, Commit, and an arrow up to Mount."
+/>
+
+The main thread is still free, so the screen keeps scrolling and native animations keep moving. The app looks alive, but nothing you wrote in JavaScript reacts. Users read this as "the button didn't work" and tap again.
+
+Keep long work off the JavaScript thread, or break it into smaller pieces. [Measuring Performance](/docs/shipping/measuring-performance) shows how to find it.
+
+### Press feedback built in JavaScript makes the same trip
+
+A pressed style like `style={({ pressed }) => ...}` is React state. It changes only after `onPressIn` runs on the JavaScript thread, so a busy thread delays the feedback too.
+
+To give feedback that doesn't wait for JavaScript, the work has to stay on the main thread. Libraries like React Native Gesture Handler and Reanimated do this. See [Gestures](/docs/rendering-and-state/gestures) and [Animations](/docs/rendering-and-state/animations).
+
+### onPress needs a clean lift
+
+`onPress` fires only if the finger lifts while still on the component. Move too far, or let a scroll view take over, and you get `onPressOut` without `onPress`. Put work you want on every touch in `onPressIn`, and work that needs a deliberate tap in `onPress`.
+
+### Bigger renders mean slower taps
+
+Steps 4 and 5 grow with how much of the tree re-renders. A tap that updates state at the top of a large screen re-renders all of it before the heart can fill. Keep state close to where it's used. [Where State Lives](/docs/rendering-and-state/where-state-lives) covers how.
+
+<WhatThisReplaced>
+
+Before the New Architecture, the event crossed [the bridge](/docs/history/the-bridge). Native code turned it into JSON, batched it with other messages and sent it across asynchronously, and JavaScript decoded it on the other side. Layout ran on a separate shadow thread, and the old [Paper renderer](/docs/history/paper-renderer) applied the changes. The trip was the same shape, with more copying and more waiting at each hop.
+
+</WhatThisReplaced>
+
+## Where to go next
+
+Each step above has a page of its own:
+
+- [What React Native Is](/docs/foundations/what-is-react-native): native views, not a web view.
+- [Threads](/docs/foundations/threads): which threads exist and what blocks what.
+- [The JavaScript Engine](/docs/foundations/javascript-engine): what runs your code, and why Hermes compiles ahead of time.
+- [Host Components](/docs/foundations/host-components): what a `<View>` turns into.
+- [Layout](/docs/foundations/layout): how flexbox becomes frames on screen.
+- [Metro and the Bundle](/docs/foundations/metro-and-the-bundle): how your JavaScript gets onto the device.
+- [Native Code in Your App](/docs/foundations/native-code): the iOS and Android projects behind it all.
+
+## Sources
+
+- [Render, Commit, and Mount](https://reactnative.dev/architecture/render-pipeline), React Native docs
+- [Threading Model](https://reactnative.dev/architecture/threading-model), React Native docs
+- [Cross Platform Implementation](https://reactnative.dev/architecture/xplat-implementation), React Native docs
+- [Pressable](https://reactnative.dev/docs/pressable), React Native docs
+- [Gesture Responder System](https://reactnative.dev/docs/gesture-responder-system), React Native docs
