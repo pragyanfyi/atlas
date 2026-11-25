@@ -2,3 +2,185 @@
 title: "Threads"
 description: "Which threads exist, what runs on each, and what blocks what."
 ---
+
+A thread is a line of work the device runs one step at a time. A React Native app runs on several threads at once, and each one has a job: one draws the screen, one runs your JavaScript, and others do slow work in the background.
+
+Most of what feels fast or slow in an app comes down to which thread a piece of work runs on, and what else is waiting on that thread.
+
+The rule to take away: **each thread runs one thing at a time, so work on a thread delays everything queued behind it.**
+
+<HelpsToKnow>
+
+- [The Life of a Tap](/docs/foundations): one tap moving between threads, step by step.
+- [The JavaScript Engine](/docs/foundations/javascript-engine): Hermes, which runs your code on the JavaScript thread.
+- [Host Components](/docs/foundations/host-components): the native views the main thread draws.
+
+</HelpsToKnow>
+
+## Why there is more than one thread
+
+A phone redraws the screen at least 60 times a second. That gives each frame about 16.7 ms, and on a 120 Hz screen about 8.3 ms. If the work for a frame isn't done in time, the frame is dropped, and you see a stutter.
+
+iOS and Android only let one thread change views: the main thread. If your JavaScript ran there too, every render and every slow function would eat into the frame budget, and scrolling would stutter whenever your code was busy.
+
+So React Native runs your JavaScript on its own thread. The main thread stays free to take touches and draw frames, and JavaScript gets a thread where it can take longer than one frame without freezing the screen. The two hand work to each other through queues.
+
+## The threads in your app
+
+<Diagram
+  name="foundations/threads/who-runs-what"
+  alt="Three swimlanes. The main thread runs Touches, Mount native views, Scrolling and Native animations. The JavaScript thread runs Your code and event handlers, Timers and Promise callbacks, React render, and Commit plus layout with Yoga. Background threads run Network requests, Image decoding, Async native module work and Garbage collection. Arrows show touches going down to event handlers, commit going up to mount, and network results going up to Promise callbacks."
+/>
+
+### The main thread
+
+Also called the UI thread. It is the app's first thread, the one the operating system starts, and the only one allowed to create or change native views.
+
+It runs:
+
+- **Touches.** The OS delivers every touch here first.
+- **Mounting.** Applying React's changes to real native views.
+- **Native scrolling.** A `ScrollView` is a native scroll view. It moves on the main thread, without asking JavaScript.
+- **Native animations.** Animations driven by the platform, such as `Animated` with `useNativeDriver: true`, native screen transitions, and Reanimated worklets.
+
+### The JavaScript thread
+
+React Native starts this thread and runs Hermes on it. All your JavaScript runs here, one task at a time:
+
+- **Event handlers**, like `onPress` and `onChangeText`.
+- **Timers and Promise callbacks**, including the code after an `await`.
+- **React's render**: calling your components to work out what the screen should look like.
+- **Commit and layout**: Yoga, React Native's layout engine, turns flexbox styles into sizes and positions, and the new tree is marked ready to show.
+
+Render, commit and layout run back to back on this thread. Only the last step, mount, moves to the main thread.
+
+### Background threads
+
+Everything else runs on threads React Native, the OS and your libraries start as needed:
+
+- Network requests and file reads.
+- Image decoding.
+- The slow part of async native module calls. A module starts the work here and returns a Promise.
+- Hermes's garbage collector, which does most of its work alongside your JavaScript instead of pausing it.
+
+Background threads can't touch views, and they can't touch JavaScript values. When they finish, they queue the result back: to the JavaScript thread to resolve a Promise, or to the main thread to change a view.
+
+<UnderTheHood title="when the pipeline runs somewhere else">
+
+The React Native architecture docs describe exceptions to the split above.
+
+- **Updates that skip React.** Some native components keep small pieces of state in C++, such as a scroll view's content offset. Updating that state doesn't involve React at all, so it can start on the main thread and skip render.
+- **Urgent events.** The docs describe the renderer running the whole pipeline on the main thread for some high-priority events, so the screen updates in the same frame.
+
+The docs also disagree on where commit runs: one page says a background thread, another says the JavaScript thread. In the React Native source, a React update commits and lays out on the JavaScript thread, as part of the same call that finishes the render. For predicting how your app behaves, assume render, commit and layout share the JavaScript thread.
+
+</UnderTheHood>
+
+## Who waits for whom
+
+Threads hand work to each other, so a busy thread doesn't only slow its own work. It slows everything waiting on it.
+
+<Diagram
+  name="foundations/threads/who-waits"
+  alt="Two panels. Left, the JavaScript thread is busy: a long red task fills the JavaScript lane while Scrolling and Native animations keep going on the main thread. Keeps going: scrolling, native animations, native screen transitions. Waits: taps, JavaScript animations, timers, network callbacks. Right, the main thread is busy: a long red task fills the main lane. On the JavaScript thread, Render and commit still run, and a dashed red Sync call to main waits on the main thread. Keeps going: your JavaScript, but nothing new reaches the screen. Waits: everything on screen, touches, scrolling, animations, mounting."
+/>
+
+### When the JavaScript thread is busy
+
+A long JavaScript task, like parsing a large response or rendering a big screen, holds the thread until it finishes.
+
+- **Still works:** scrolling, native animations, and native screen transitions. They live on the main thread.
+- **Waits:** taps, because `onPress` is JavaScript. Animations driven from JavaScript. Timers, which fire late. Network responses, whose callbacks queue up behind the task.
+
+The app looks alive but doesn't react. Users read that as "the button didn't work" and tap again. Lists can also show blank space, because the native list keeps scrolling while JavaScript can't render new rows fast enough.
+
+### When the main thread is busy
+
+A long task on the main thread is worse, because the main thread draws everything.
+
+- **Still works:** your JavaScript keeps running, but nothing it produces reaches the screen until the main thread is free to mount it.
+- **Waits:** everything visible. Touches, scrolling, animations, mounting.
+
+The app looks frozen. On Android, if the main thread can't handle input for about five seconds, the system shows an "App Not Responding" dialog. On iOS, the system can kill an app whose main thread stays blocked at launch.
+
+Main thread work comes from native code: a native module doing slow work on the main thread, a very large number of views mounting at once, or heavy layout in native components.
+
+### When one thread waits on another
+
+A synchronous call ties two threads together. If JavaScript makes a synchronous native call that has to run on the main thread, the JavaScript thread waits for the main thread. A busy main thread then stalls your JavaScript too. [JSI](/docs/new-architecture/jsi) covers why synchronous calls need care.
+
+## How to see it
+
+React Native's Perf Monitor shows two frame rates, one per thread. Open the Dev Menu and choose "Show Perf Monitor".
+
+- **JS frame rate** drops when the JavaScript thread is busy.
+- **UI frame rate** drops when the main thread is busy.
+
+Which number drops tells you which thread to look at. Measure in a release build: JavaScript runs much slower in development mode. [Measuring Performance](/docs/shipping/measuring-performance) covers profiling in depth.
+
+## How it fits with other pieces
+
+- **[JSI](/docs/new-architecture/jsi)** runs a call on the thread that makes it, and the caller waits. That is why the thread a native call runs on matters.
+- **[TurboModules](/docs/new-architecture/turbomodules)** and the **[Expo Modules API](/docs/expo/expo-modules-api)** split methods into sync ones, which run on the JavaScript thread, and async ones, which run their work on another thread and return a Promise.
+- **[Animations](/docs/rendering-and-state/animations)** stay smooth while JavaScript is busy only if they run on the main thread. That is the reason for the native driver and Reanimated's worklets.
+- **[Gestures](/docs/rendering-and-state/gestures)** work the same way: gestures recognised on the main thread keep tracking the finger while JavaScript is busy.
+- **[Lists](/docs/rendering-and-state/lists)** render rows on the JavaScript thread while the native list scrolls on the main thread. When rendering falls behind, you see blank rows.
+- **[Layout](/docs/foundations/layout)** runs on the JavaScript thread, in the same step as commit. That is why `useLayoutEffect` can measure a view and update it before the user sees the first version.
+- **[Concurrent features](/docs/new-architecture/concurrent-features)**, like `startTransition`, let React pause a long render so urgent updates go first. The render still runs on the JavaScript thread.
+
+## Common pitfalls
+
+### Thinking async means another thread
+
+An `async` function runs on the JavaScript thread, like any other JavaScript. `await` only pauses the function until a Promise resolves. The code before and after it still runs on the same thread.
+
+```ts title="Still on the JavaScript thread"
+async function loadFeed() {
+  const res = await fetch(url); // the request runs on a native thread
+  const items = await res.json(); // parsing runs on the JavaScript thread
+  return items.sort(byDate); // so does this
+}
+```
+
+The network request runs elsewhere, but parsing and sorting a large response hold the JavaScript thread. Async helps only when the slow part is native work, like the request itself.
+
+### Heavy work in an event handler
+
+Work in `onPress` runs before React can render anything. If the handler sorts a large list or parses data before calling `setState`, the press feedback waits for it.
+
+Keep handlers short. Set state first so the screen can respond, then do the heavy work. The React Native docs suggest wrapping it in `requestAnimationFrame` so it starts after the next frame. For slow renders, `startTransition` marks the update as one that can wait.
+
+### Measuring in development mode
+
+Development builds run extra checks and don't use the optimised bytecode, so JavaScript runs much slower. A screen that drops frames in development can be smooth in release. Profile release builds before you change code.
+
+### Changing views from a background thread
+
+Native code that touches a view from a background thread breaks the main thread rule. On Android, it throws a `CalledFromWrongThreadException`. On iOS, UIKit doesn't always crash, but it can glitch or crash later, and Xcode's Main Thread Checker flags it. Native modules must queue view changes onto the main thread.
+
+## When you don't need this
+
+Most screens never push either thread hard, and you can build them without thinking about threads. Reach for this when something feels slow: a press that responds late, an animation that stutters, a list that flashes blank. The first question is always which thread is busy.
+
+<WhatThisReplaced>
+
+The old architecture had a third thread just for layout, the shadow thread. Your JavaScript sent changes over [the bridge](/docs/history/the-bridge) as JSON, the shadow thread laid them out, and the main thread applied them. Every step was asynchronous, so JavaScript could never read layout in the same step it rendered. [The Paper Renderer](/docs/history/paper-renderer) covers that design.
+
+</WhatThisReplaced>
+
+## Where to go next
+
+- [The Life of a Tap](/docs/foundations): one tap moving between the main thread and the JavaScript thread.
+- [JSI](/docs/new-architecture/jsi): synchronous calls, and why they can block.
+- [Animations](/docs/rendering-and-state/animations): keeping motion on the main thread.
+- [What a Render Costs](/docs/rendering-and-state/render-cost): how much time render takes on the JavaScript thread.
+- [Measuring Performance](/docs/shipping/measuring-performance): finding which thread is busy.
+
+## Sources
+
+- [Threading Model](https://reactnative.dev/architecture/threading-model), React Native docs
+- [Render, Commit, and Mount](https://reactnative.dev/architecture/render-pipeline), React Native docs
+- [Performance Overview](https://reactnative.dev/docs/performance), React Native docs
+- [About the New Architecture](https://reactnative.dev/docs/the-new-architecture/landing-page), React Native docs
+- [UIManagerBinding.cpp](https://github.com/facebook/react-native/blob/main/packages/react-native/ReactCommon/react/renderer/uimanager/UIManagerBinding.cpp), React Native source
+- [ANRs](https://developer.android.com/topic/performance/vitals/anr), Android developers
