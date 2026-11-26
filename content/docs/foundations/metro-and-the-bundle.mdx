@@ -2,3 +2,186 @@
 title: "Metro and the Bundle"
 description: "How your JavaScript gets onto the device, in development and in release."
 ---
+
+Metro is the bundler React Native uses. It starts from your entry file, follows every import, converts each file into JavaScript the engine can run, and joins them all into one file: the bundle. The React Native CLI and Expo both use Metro.
+
+The rule to take away: **Metro turns your files into one JavaScript bundle. In development, the app downloads it from Metro on your computer. In a release build, it's built ahead of time and packed inside the app.**
+
+<HelpsToKnow>
+
+- [What React Native Is](/docs/foundations/what-is-react-native): the JavaScript bundle and the native binary, and why they ship differently.
+- [The JavaScript Engine](/docs/foundations/javascript-engine): what Hermes does with the bundle once it's on the phone.
+
+</HelpsToKnow>
+
+## Why it exists
+
+Your project is hundreds of files, plus thousands more in `node_modules`. It's written in TypeScript and JSX, which no JavaScript engine runs directly. The engine on the phone can't read your project folder, find packages, or strip types. It wants one script it can run from top to bottom.
+
+Something has to bridge that gap, and it has to do it twice, for two different needs:
+
+- **In development**, you want a change on screen a second after you save, without rebuilding the app.
+- **In release**, you want the smallest, fastest code you can ship, with no dependence on your computer.
+
+Metro does both. It also knows things a web bundler doesn't need to: that `Button.ios.tsx` is for iOS only, and that an image you `require` has to end up in the native app.
+
+## How it works
+
+### Resolve, transform, serialize
+
+Metro builds a bundle in three steps.
+
+<Diagram
+  name="foundations/metro-and-the-bundle/resolve-transform-serialize"
+  alt="Three grey steps from left to right, all on your computer. One, resolve: follow every import from the entry file. Below it, a small graph of orange files: index.ts imports App.tsx, which imports Button.ios.tsx and react. Caption: Button.ios.tsx wins on an iOS build. Two, transform: Babel, one file at a time. Below it, Button.tsx with TypeScript and JSX becomes plain JavaScript with no types and no JSX, and a dashed grey cache box keeps one result per file. Three, serialize: wrap each module and join them into one file. Below it, an orange bundle listing a define call for each module with its number and dependencies, then a call that runs module 0."
+/>
+
+**Resolve.** Starting from the entry file, Metro finds the file behind every `import` and `require`. It looks for relative paths, packages in `node_modules`, and the fields in each package's `package.json`, including `exports`, which Metro reads by default since React Native 0.79. It also applies platform extensions: for an iOS build, `Button.ios.tsx` wins over `Button.native.tsx`, which wins over `Button.tsx`. The result is a dependency graph, every file the app can reach.
+
+Resolution happens on your computer, before the app runs, so import paths must be plain strings Metro can read. `require("./icons/" + name + ".png")` can't be resolved: Metro would have to guess every possible value of `name`.
+
+**Transform.** Metro runs each file through Babel, one file at a time. Babel removes TypeScript types, turns JSX into function calls, and rewrites syntax the engine doesn't support. Removing types is not checking them: a type error doesn't stop the bundle. Run `tsc` separately for that.
+
+Transforms are cached on disk, one result per file. After the first build, only files that changed are transformed again, which is what makes a large project fast to rebuild.
+
+**Serialize.** Metro wraps each module in a function with a number, adds a small module system that provides `require`, and writes everything into one file:
+
+```js title="A bundle, simplified"
+__d(function (require, module, exports) { /* index.ts */ }, 0, [1]);
+__d(function (require, module, exports) { /* App.tsx */ }, 1, [2, 3]);
+__d(function (require, module, exports) { /* Button.ios.tsx */ }, 2, []);
+__d(function (require, module, exports) { /* react */ }, 3, []);
+__r(0); // run the entry module
+```
+
+`__d` only defines a module. Its code runs the first time something requires it. So the bundle holds all your code, but a module that's never required never runs. React Native's default Metro config also turns on **inline requires**, which moves each `require` from the top of a file to where the value is first used. A screen's dependencies then load when the screen renders, not when the app starts.
+
+### In development: a server on your computer
+
+In development, Metro runs as a server: `npx expo start`, or `npx react-native start` without Expo. It listens on port 8081 by default and builds the bundle when the app asks for it.
+
+<Diagram
+  name="foundations/metro-and-the-bundle/dev-vs-release"
+  alt="Two dashed bands. Development: a grey box, your computer running the Metro dev server on port 8081, sends the bundle at launch to a green development build on the phone, which has no JavaScript inside. A dashed arrow below it carries changed modules on save, which is Fast Refresh. The phone hands the bundle to a purple Hermes box that runs plain source. Release: a grey build machine runs Metro once, minified, with __DEV__ off. A purple Hermes compiler turns the bundle into bytecode. A green app binary holds the bytecode and images packed inside. A grey box: the store, then the phone loads it from disk. Caption: an over-the-air update swaps this bundle without a store build."
+/>
+
+A development build of your app has no JavaScript inside it. At launch, it asks Metro for the bundle over HTTP, from wherever Metro is running:
+
+- **A simulator or emulator** reaches your computer directly.
+- **An Android phone over USB** reaches it through `adb reverse`, which forwards port 8081 on the phone to your computer.
+- **A phone on Wi-Fi** needs your computer's address. An iOS build from the React Native CLI embeds it when you build for a device. On Android, you enter it in the Dev Menu's settings. With Expo, a development build or Expo Go opens the server's URL, usually from the QR code `npx expo start` prints. The phone and computer must be on the same network.
+
+The development bundle is built for change, not speed. `__DEV__` is `true`, so React and React Native keep their warnings and extra checks. The code isn't minified. Hermes reads it as source and compiles it on the phone. Images are served by Metro over HTTP too.
+
+This is why JavaScript is much slower in development than in release, and why performance should only be measured in a release build.
+
+### Fast Refresh
+
+When you save a file, Metro transforms that file again and sends the changed modules to the app over an open connection. The app swaps them in without a full reload. This is Fast Refresh, on by default since React Native 0.61.
+
+How much survives depends on what the file exports:
+
+- **A file that exports only React components**: those components re-render with the new code, and function components keep their state. Class components lose theirs.
+- **A file that also exports other values**: it runs again, along with every file that imports it.
+- **A file imported by code outside the React tree**: Fast Refresh gives up and reloads the whole app.
+
+To make a file's components remount on every save, add `// @refresh reset` anywhere in it.
+
+### In release: built once, packed inside
+
+A release build runs Metro once, during the native build. Xcode does it in a build phase called "Bundle React Native code and images", and Gradle in a task of its own. Expo projects run `npx expo export:embed` in the same place.
+
+The release bundle is built for speed:
+
+- `__DEV__` is `false`, so development-only code is removed.
+- The code is minified: short names, no whitespace, no comments.
+- The Hermes compiler turns it into bytecode, so the phone skips parsing and compiling at launch.
+- Images you `require` are copied into the native app's resources.
+
+The bundle is packed inside the app binary. At launch, the app loads it from disk and needs no computer.
+
+This file is also the part of your app an over-the-air update can replace. [EAS Update](/docs/expo/eas-update) ships a new bundle and its images, and the app loads it on a later launch instead of the one it was built with.
+
+Anything Metro inlines at build time ends up in this file. Expo replaces `process.env.EXPO_PUBLIC_API_URL` with its value while bundling, so the value ships as plain text. Never put a secret in a public variable: anyone with the app can read the bundle.
+
+### Source maps
+
+A crash in a release build reports where it happened in the minified bundle, not in your code:
+
+```txt title="A release stack trace, before symbolication"
+TypeError: Cannot read property 'name' of undefined
+    at p (address at index.android.bundle:1:132161)
+```
+
+A source map is a file Metro writes next to the bundle that maps each position back to your original file, line and name. Turning that trace back into your code is called symbolicating. React Native's `metro-symbolicate` tool does it by hand, and crash reporting services do it for you if you upload the map from each build.
+
+Android writes source maps by default. iOS doesn't, until you set `SOURCEMAP_FILE` in the bundle build phase. A map only works for the exact build it came from, so keep or upload one per release.
+
+## How it fits with other pieces
+
+- **[What React Native Is](/docs/foundations/what-is-react-native)**: the bundle is the half of the app Metro builds. The native binary is built by Xcode and Gradle.
+- **[The JavaScript Engine](/docs/foundations/javascript-engine)**: the Hermes compiler takes Metro's release bundle and turns it into bytecode.
+- **[EAS Update](/docs/expo/eas-update)**: ships a new bundle to installed apps without a store build.
+- **[Expo Go and Development Builds](/docs/expo/expo-go-and-development-builds)**: the apps that download a development bundle from Metro.
+- **[App Startup](/docs/shipping/app-startup)**: loading the bundle and running its first modules is part of every launch.
+- **[Debugging](/docs/shipping/debugging)**: the debugger reads Metro's source maps to show your original code.
+
+## Common pitfalls
+
+### The app can't load the bundle
+
+A development build opens to a red screen: "Unable to load script" on Android, "No bundle URL present" on iOS, or a message that it can't connect to the development server. The phone can't reach Metro. Check that Metro is running, that the phone and computer are on the same network, and, for an Android phone on USB, that `adb reverse tcp:8081 tcp:8081` has been run since you plugged it in. Company and public Wi-Fi often block devices from reaching each other.
+
+### A change to config does nothing
+
+You edit `babel.config.js`, the Metro config, or an environment variable your Babel config reads, and the app behaves as before. Metro caches transformed files and doesn't always know your change affects them. Restart with the cache cleared: `npx expo start --clear`, or `npx react-native start --reset-cache`.
+
+### Fast Refresh loses state, or reloads everything
+
+Saving a file resets a form, or reloads the whole app. The file probably exports something that isn't a component, like a constant or a hook, next to its components. Or it's imported by code outside the React tree, such as a store set up at startup. Move components into files that export only components.
+
+### "Unable to resolve module"
+
+The bundle fails with a module Metro can't find. Three common causes:
+
+- **A dynamic path**, like `require("./icons/" + name)`. Use a map of static requires instead, one per file.
+- **A Node.js package.** Modules like `fs`, `path` or `crypto` exist in Node, not in Hermes. A library that imports them is built for Node, not React Native.
+- **A new package Metro hasn't seen.** After installing, restart Metro, clearing the cache if needed.
+
+### Type errors in a working app
+
+The app runs with a TypeScript error in it. Metro removes types without checking them. Run `tsc --noEmit` in your editor or in CI to catch them.
+
+### It works in development, but breaks in release
+
+Something works in development, then fails in a release build. Release is a different bundle: `__DEV__` is `false`, the code is minified, and it runs as bytecode. Code that relies on function or class names breaks when minification shortens them. A value only set on your machine, like a local environment variable, is missing from a build made somewhere else. Build and test a release version before you ship.
+
+<UnderTheHood title="why import order can change with inline requires">
+
+Inline requires move each `require` to its first use. A module that runs side effects when it loads, like one that sets up a global, now runs when its value is first read, not when the file that imports it loads.
+
+Usually this only makes startup faster. It breaks when code depends on a side effect without using the module's value: `import "./setup"` for a polyfill works, since a bare import isn't moved, but a module that's imported for a value and also patches a global may run later than you expect. Keep setup code in bare imports at the top of your entry file.
+
+</UnderTheHood>
+
+## When you can ignore this
+
+Most of the time, Metro is invisible. Expo and the React Native template configure it, and you only meet it as the server you start in the morning. Come back to this page when the app can't reach Metro, when a module won't resolve, when a crash report shows only minified names, or when release behaves differently from development.
+
+## Where to go next
+
+- [The JavaScript Engine](/docs/foundations/javascript-engine): what happens to the bundle after Metro.
+- [Native Code in Your App](/docs/foundations/native-code): the other half of the app, the iOS and Android projects.
+- [EAS Update](/docs/expo/eas-update): replacing the bundle in apps that are already installed.
+
+## Sources
+
+- [Concepts](https://metrobundler.dev/docs/concepts), Metro docs (resolution, transformation, serialization)
+- [Configuring Metro](https://metrobundler.dev/docs/configuration), Metro docs (inline requires, non-static requires, `--reset-cache`)
+- [Package Exports Support](https://metrobundler.dev/docs/package-exports), Metro docs (on by default since Metro 0.82, React Native 0.79)
+- [Fast Refresh](https://reactnative.dev/docs/fast-refresh), React Native docs
+- [React Native 0.61](https://reactnative.dev/blog/2019/09/18/version-0.61), React Native blog (Fast Refresh introduced)
+- [Running On Device](https://reactnative.dev/docs/running-on-device), React Native docs (port 8081, `adb reverse`, Wi-Fi)
+- [Debugging Release Builds](https://reactnative.dev/docs/debugging-release-builds), React Native docs (source maps, `metro-symbolicate`)
+- [Customizing Metro](https://docs.expo.dev/versions/latest/config/metro/), Expo docs (`npx expo export:embed`, `--clear`)
+- [Environment variables in Expo](https://docs.expo.dev/guides/environment-variables/), Expo docs (`EXPO_PUBLIC_` values inlined in plain text)
