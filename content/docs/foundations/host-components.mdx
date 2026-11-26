@@ -2,3 +2,202 @@
 title: "Host Components"
 description: "What a <View> turns into on iOS and Android."
 ---
+
+A host component is a component that React Native builds from a real native view. `<View>`, `<Text>`, `<Image>`, `<ScrollView>` and `<TextInput>` are host components. When you render one, a view appears on screen: a `UIView` on iOS, a `ViewGroup` on Android.
+
+Every other component, including all of yours, is JavaScript. It runs, returns more components, and is gone by the time anything reaches the screen.
+
+The rule to take away: **only host components become native views. Every other component is JavaScript that unfolds into them.**
+
+<HelpsToKnow>
+
+- [What React Native Is](/docs/foundations/what-is-react-native): your code runs as JavaScript, and everything on screen is a native view.
+- [Threads](/docs/foundations/threads): which thread renders, and which one changes views.
+- [The Life of a Tap](/docs/foundations): render, commit and mount, step by step.
+
+</HelpsToKnow>
+
+## Why it exists
+
+React doesn't know how to draw anything. It calls your components, and they return more components, and so on down. At some point the tree has to bottom out in things a renderer knows how to make.
+
+On the web, those things are DOM elements: `<div>`, `<span>`, `<img>`. React calls them host components because the host, the browser, provides them. React Native is the same idea with a different host. Its host components are the ones React Native knows how to turn into iOS and Android views.
+
+So there are two kinds of component:
+
+- **Host components** are built into React Native or added by a library with native code. Each one is backed by a native view.
+- **Composite components** are everything else: your `ProfileCard`, a library's `Avatar`, and many of React Native's own built-ins. They only exist while React renders.
+
+## How it works
+
+### Your components unfold into host components
+
+Take a small card:
+
+```tsx title="A card built from composite and host components"
+function ProfileCard({ user }: { user: User }) {
+  return (
+    <View style={styles.card}>
+      <Avatar uri={user.photo} />
+      <View style={{ marginTop: 8 }}>
+        <Text>
+          {user.name} <Text style={styles.badge}>Pro</Text>
+        </Text>
+      </View>
+      <Pressable onPress={follow}>
+        <Text>Follow</Text>
+      </Pressable>
+    </View>
+  );
+}
+```
+
+React calls `ProfileCard`, then `Avatar`, then `Pressable`. Each returns host components, or more composites that do. What React Native receives at the end is a tree of host components only.
+
+<Diagram
+  name="foundations/host-components/what-reaches-the-screen"
+  alt="Three columns side by side. Your components, what you write: ProfileCard, a View card, Avatar, an Image, a View with margin only, a Text with the name, a nested Text saying Pro, Pressable, and a Text saying Follow. ProfileCard, Avatar and Pressable are dashed. Host components, what React Native receives: the same rows with the dashed components gone, Pressable now a plain View, and the margin-only View dashed and grey as layout only. Native views on iOS, what's on screen: a UIView for the card, a UIImageView, no view where the layout-only View was, one text view holding both the name and Pro, a UIView for the button and a text view inside it. Dashed means gone before the screen."
+/>
+
+Three things fall away on the way to the screen:
+
+- **Your components.** `ProfileCard` and `Avatar` leave no trace. Only what they return survives.
+- **Some built-ins.** `Pressable` is a composite too. It renders a `<View>` and handles touches in JavaScript.
+- **Views that only do layout.** The `<View>` with just a margin is flattened away. More on this [below](#views-that-only-do-layout-get-flattened).
+
+And one thing merges: the two nested `<Text>` components become a single native text view.
+
+Many built-ins you might expect to be native are composites:
+
+| Host components (a native view) | Composites (JavaScript built on host components) |
+| --- | --- |
+| `View`, `Text`, `Image`, `ScrollView`, `TextInput`, `Switch`, `ActivityIndicator`, `Modal` | `Pressable`, `Button`, `TouchableOpacity`, `FlatList`, `SectionList`, `ImageBackground`, `KeyboardAvoidingView` |
+
+`FlatList` is a `ScrollView` plus logic that decides which rows to render. `ImageBackground` is a `View` with an `Image` behind its children. Knowing this tells you where their behaviour lives: a `FlatList` bug is a JavaScript bug, and a `ScrollView` bounce is the platform's.
+
+### From one element to one native view
+
+When React finishes rendering, React Native's C++ core keeps a copy of each host component, called a shadow node. A shadow node holds the component's props and, after layout, its size and position. It's the native side's record of what the screen should look like, so working out what changed never has to touch the real views.
+
+<Diagram
+  name="foundations/host-components/element-to-view"
+  alt="Two swimlanes. On the JavaScript thread, an orange React element, View with style card, goes through render to a purple shadow node holding its props, size and position, then through commit and layout to a purple mutation list: create view, set props, add to parent. An arrow goes down to the main thread, where a green Mount box applies the list, with arrows to iOS, a UIView, and Android, a ViewGroup."
+/>
+
+On each update, React Native compares the new shadow tree with the last one and produces a list of changes: create this view, set these props, add it to that parent, remove that one. The main thread applies the list to real views. That is the mount, and it's the only step that touches native views.
+
+Each host component has a native counterpart on each platform, which React Native creates on the first mount and then updates in place. [What React Native Is](/docs/foundations/what-is-react-native#what-each-component-becomes) lists which platform view backs each component, and [Fabric](/docs/new-architecture/fabric) covers the pipeline in depth.
+
+### Props become native settings
+
+A host component's props cross to native code. `backgroundColor`, `opacity`, `borderRadius` and the rest are set on the native view. Callbacks like `onLayout` or `onScroll` go the other way: the native view fires an event, and React Native calls your function.
+
+This is why some props only work on one platform. A prop is something the native view knows how to apply. `android_ripple` on `Pressable` and `underlineColorAndroid` on `TextInput` mean something to Android's views. iOS has no use for them, so they're ignored there.
+
+### Text is one view, not one per `<Text>`
+
+Nested `<Text>` components don't become nested views. React Native joins them into one styled string, an `NSAttributedString` on iOS or a `SpannableString` on Android, and hands it to one native text view. Each inner `<Text>` becomes a styled range inside it.
+
+That's also why strings must sit inside a `<Text>`. A text view is the only native view that can show a string. A string directly inside a `<View>` has nowhere to go, and React Native throws an error instead of guessing.
+
+### Views that only do layout get flattened
+
+Many `<View>`s exist only to arrange their children: a margin here, a `flexDirection: "row"` there. They draw nothing, so React Native leaves them out of the native view tree and moves their children up to the nearest view that is drawn. Their layout still applies. This is called view flattening, and it happens on both platforms.
+
+A `<View>` stays a real view when it does something native, like drawing a background or border, clipping, or setting `opacity`. A few props keep it on purpose:
+
+- `collapsable={false}` keeps this one view.
+- `collapsableChildren={false}` keeps its direct children.
+- `testID` and `nativeID` keep it, so that tests and native code can find it.
+
+Flattening matters because every native view costs memory and mount time. Wrapper `<View>`s are cheaper than they look, since the ones that only do layout never reach the screen.
+
+### Refs point at the native side
+
+A ref on a host component gives you its native node, not a React object. You can measure it, focus it, or read its place in the tree.
+
+```tsx title="Measuring a host component"
+const ref = useRef<View>(null);
+
+useLayoutEffect(() => {
+  const box = ref.current?.getBoundingClientRect();
+  console.log(box?.width, box?.height);
+}, []);
+
+return <View ref={ref} style={styles.card} />;
+```
+
+Since React Native 0.82, these nodes implement a subset of the DOM: `getBoundingClientRect()`, `parentNode`, `children` and more. The older `measure()` still works.
+
+A ref on a composite component gives you whatever that component chooses to pass on, which may be nothing.
+
+### Libraries can add host components
+
+React Native's built-ins aren't the only host components. A library with native code registers its own: a map view, a video player, `<Svg>` from react-native-svg. The library describes the component's props in a TypeScript spec, and [Codegen](/docs/new-architecture/codegen) generates the glue between that spec and the native view. With Expo, the [Expo Modules API](/docs/expo/expo-modules-api) does the same job in Swift and Kotlin.
+
+To React, a library's native component is a host component like `<View>`. It has a shadow node, gets mounted, and is backed by a real view. It also needs that native view to be in your app's build.
+
+## How it fits with other pieces
+
+- **[Threads](/docs/foundations/threads)**: render, commit and layout run on the JavaScript thread. Only the mount runs on the main thread.
+- **[Layout](/docs/foundations/layout)**: computes the size and position stored on each shadow node.
+- **[Fabric](/docs/new-architecture/fabric)**: the renderer that turns host components into native views.
+- **[Codegen](/docs/new-architecture/codegen)**: generates the glue for host components that libraries add.
+- **[Platform Differences](/docs/native-ui/platform-differences)**: why the same host component looks different on each platform.
+- **[What a Render Costs](/docs/rendering-and-state/render-cost)**: rendering composites is JavaScript work, and mounting host components is native work.
+
+## Common pitfalls
+
+### "Unimplemented component" on screen
+
+When React Native receives a host component it has no native view for, it shows a placeholder naming the missing component instead of the real one. The JavaScript knows about the component, but the native binary doesn't.
+
+The cause is almost always a library with native code that isn't in the current build: you installed it and reloaded, or you're running in Expo Go, which only includes a fixed set of native modules. Rebuild the app, or make a [development build](/docs/expo/expo-go-and-development-builds).
+
+### Native code can't find a view
+
+A view inspector, a screenshot library or your own native module looks for a view that you rendered, and it isn't there. If the `<View>` only did layout, it was flattened away. Add `collapsable={false}` to keep it in the native tree.
+
+### A prop that does nothing
+
+A prop works on one platform and silently does nothing on the other. Check the docs for a platform marker. Props like `android_ripple` exist for one platform's views only. Reach for `Platform.select` when the two platforms need different props.
+
+### A ref that isn't a native node
+
+You put a ref on your own component and call `measure()` or `focus()`, and get `undefined`. Composite components don't have a native node. Pass the ref down to the host component inside, which in React 19 is a plain `ref` prop.
+
+### Too many real views
+
+Deep trees of wrappers that draw something, like a background, a border or a shadow at every level, all survive flattening. Each one is a native view to create, lay out and keep in memory. In long lists, that adds up, and it's native work that memoizing your JavaScript doesn't reduce. If one wrapper can carry the background and border, the others can stay layout-only and be flattened.
+
+<UnderTheHood title="why React Native keeps a C++ copy of every view">
+
+Native views can only be touched on the main thread. If React Native compared trees by reading the real views, every update would need the main thread, and a busy main thread would stall your JavaScript too.
+
+Shadow nodes avoid that. They are immutable: an update builds new nodes for what changed and shares the rest with the previous tree. So the JavaScript thread can build and lay out the next tree while the main thread still shows the current one, and the main thread only receives the final list of changes.
+
+</UnderTheHood>
+
+<WhatThisReplaced>
+
+In the old architecture, each host component had a "view manager" in native code, and JavaScript sent create and update commands to it as JSON over [the bridge](/docs/history/the-bridge). Layout ran on a separate shadow thread, and flattening only happened on Android. [The Paper Renderer](/docs/history/paper-renderer) covers that pipeline. Fabric moved the shadow tree into shared C++, so both platforms now flatten views and compute layout the same way.
+
+</WhatThisReplaced>
+
+## Where to go next
+
+- [Layout](/docs/foundations/layout): how flexbox styles become the sizes on each shadow node.
+- [Fabric](/docs/new-architecture/fabric): render, commit and mount in depth.
+- [Platform Differences](/docs/native-ui/platform-differences): when the same component should look different.
+- [What a Render Costs](/docs/rendering-and-state/render-cost): what each render does on the phone.
+
+## Sources
+
+- [Core Components and Native Components](https://reactnative.dev/docs/intro-react-native-components), React Native docs
+- [Render, Commit, and Mount](https://reactnative.dev/architecture/render-pipeline), React Native docs
+- [View Flattening](https://reactnative.dev/architecture/view-flattening), React Native docs
+- [Glossary](https://reactnative.dev/architecture/glossary), React Native docs
+- [View](https://reactnative.dev/docs/view), React Native docs (`collapsable`, `collapsableChildren`, `nativeID`, `testID`)
+- [Text](https://reactnative.dev/docs/text), React Native docs (nested text)
+- [React Native 0.82](https://reactnative.dev/blog/2025/10/08/react-native-0.82), React Native blog (DOM-like nodes via refs)
+- [Element Nodes](https://reactnative.dev/docs/element-nodes), React Native docs
