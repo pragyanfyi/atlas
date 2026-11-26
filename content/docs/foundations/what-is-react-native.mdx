@@ -2,3 +2,192 @@
 title: "What React Native Is"
 description: "What is actually on screen: native views, not a web view."
 ---
+
+React Native is a framework for building iOS and Android apps with React. You write components in JavaScript, and React Native turns them into the platform's own views: a `UIView` on iOS, an Android `View` on Android. There is no web page and no browser inside the app.
+
+Your logic stays JavaScript. It runs inside the app, in an engine called Hermes, and it tells native code what the screen should look like.
+
+The rule to take away: **your code runs as JavaScript, but everything on screen is a real native view.**
+
+<HelpsToKnow>
+
+- [The Life of a Tap](/docs/foundations): one tap moving from native code to your JavaScript and back.
+- [Host Components](/docs/foundations/host-components): what a `<View>` turns into.
+- [Threads](/docs/foundations/threads): where your JavaScript runs, and where the views are drawn.
+
+</HelpsToKnow>
+
+## Why it exists
+
+Building an app natively means writing it twice: once in Swift for iOS, once in Kotlin for Android, by two teams or one team doing double the work. Frameworks that share one codebase across both platforms take one of three broad approaches.
+
+<Diagram
+  name="foundations/what-is-react-native/three-ways-to-build"
+  alt="Three columns, each a stack of three boxes. Web view app: your code in HTML, CSS and JavaScript, then a browser engine in a web view, then HTML elements styled to look native; one view, with a web page living inside it. Own renderer: your code in the framework's language, then the framework's own graphics engine, then pixels on one canvas drawn to look native; one view, with the framework painting all of it. React Native: your code in React and JavaScript, then React Native asking for views, then the platform's own native views in green; many views, each one the platform's own. Only React Native puts the platform's own views on screen."
+/>
+
+- **A web view app** puts a browser inside a native shell and loads a web page into it. You keep web skills and web code, but every button is HTML made to look like a native one.
+- **An own-renderer framework** draws every pixel itself, onto one surface, with its own graphics engine. It looks the same on every device, but each control is the framework's copy of a native one, not the real thing.
+- **React Native** asks the platform for its real views and arranges them. A `<ScrollView>` is the platform's scroll view, and a `<TextInput>` is the platform's text field.
+
+The payoff of real views is behaviour you don't have to rebuild: scroll physics, text selection, the keyboard, accessibility, and system-wide settings like larger text. They come from the platform, so they act the way users expect.
+
+The cost is that the two platforms don't look identical, because their views aren't. And every update has to travel from your JavaScript to native code, which is what most of Atlas is about.
+
+## How it works
+
+### What's inside your app
+
+A React Native app is a normal iOS or Android app. It installs from the App Store or Google Play like any other, and the operating system can't tell it apart from one written in Swift or Kotlin.
+
+Inside, it has two halves.
+
+<Diagram
+  name="foundations/what-is-react-native/whats-in-the-app"
+  alt="Two dashed bands. The top band, the JavaScript bundle, which an over-the-air update can replace, holds two orange boxes: your code, meaning screens, components and logic, and below it JavaScript libraries, React and React Native's JavaScript. The bottom band, the native binary, where changes need a new store build, holds Hermes and the React Native core with JSI, Fabric and TurboModules in purple, then native views and native modules from your libraries in green, then the app shell, meaning the iOS and Android projects, permissions and icons, in green."
+/>
+
+**The JavaScript bundle.** Your code, your JavaScript libraries, React, and React Native's own JavaScript, combined into one file by [Metro](/docs/foundations/metro-and-the-bundle). In a release build, Hermes compiles it to bytecode ahead of time. [The JavaScript Engine](/docs/foundations/javascript-engine) covers that step.
+
+**The native binary.** Everything compiled for the phone:
+
+- **Hermes**, the engine that runs the bundle.
+- **React Native's core**, written in C++ and shared by both platforms. [JSI](/docs/new-architecture/jsi) connects JavaScript to native code, [Fabric](/docs/new-architecture/fabric) turns your components into native views, and [TurboModules](/docs/new-architecture/turbomodules) expose native features to JavaScript.
+- **Platform code**: the native views themselves, and the native modules your libraries add, written in Swift, Objective-C, Kotlin or Java.
+- **The app shell**: the iOS and Android projects that hold the app's name, icon, permissions and settings. [Native Code in Your App](/docs/foundations/native-code) covers them.
+
+The split matters when you ship. An over-the-air update, like [EAS Update](/docs/expo/eas-update), can replace the JavaScript bundle and its images, and users get the change on their next launch. It can't change anything in the native binary. A new native library, a new permission, or a React Native upgrade all need a new build through the store.
+
+### React, with a different renderer
+
+React itself doesn't know about screens. It works out what your UI should look like, and hands that to a renderer that makes it real. On the web, the renderer is `react-dom`, and it creates DOM elements. In an app, the renderer is React Native, and it creates native views.
+
+So your components, hooks, state and context work the same as on the web. What changes is what they render to:
+
+- **Components.** `<View>`, `<Text>`, `<Image>` and `<TextInput>` instead of `<div>`, `<p>`, `<img>` and `<input>`.
+- **Styles.** No CSS files, selectors or cascade. Each component takes a `style` prop, a JavaScript object. Layout is flexbox, and `flexDirection` defaults to `column`, not `row`. [Layout](/docs/foundations/layout) covers how it's computed.
+- **Text.** Every string must sit inside a `<Text>`. Text styles pass down only from a `<Text>` to the `<Text>` inside it, not from a `<View>`.
+- **APIs.** There is no `document` or `window.localStorage`. Features like the camera, storage or haptics come from native modules, which expose platform APIs to JavaScript.
+
+```tsx title="Same React, different elements"
+function Greeting({ name }: { name: string }) {
+  const [waved, setWaved] = useState(false);
+
+  return (
+    <View style={{ padding: 16, gap: 8 }}>
+      <Text style={{ fontSize: 18 }}>Hello, {name}</Text>
+      <Pressable onPress={() => setWaved(true)}>
+        <Text>{waved ? "Waved" : "Wave"}</Text>
+      </Pressable>
+    </View>
+  );
+}
+```
+
+`useState` and `onPress` are plain React. `<View>`, `<Text>` and `<Pressable>` are React Native's.
+
+### What each component becomes
+
+Each built-in component is backed by a view the platform already has. React Native calls these host components.
+
+| Component | iOS | Android |
+| --- | --- | --- |
+| `<View>` | `UIView` | `ViewGroup` |
+| `<Text>` | a `UIView` that draws text with the system's text engine | `TextView` |
+| `<Image>` | `UIImageView` | `ImageView` |
+| `<ScrollView>` | `UIScrollView` | `ScrollView` |
+| `<TextInput>` | `UITextField`, or `UITextView` when multiline | `EditText` |
+
+React Native uses its own subclasses of these views, and the exact classes change between versions. [Host Components](/docs/foundations/host-components) covers how the mapping works.
+
+## What's shared and what isn't
+
+Your JavaScript is shared. The same components, logic and state run on both platforms.
+
+The views aren't. Each platform draws its own, so the same code can look and behave differently:
+
+- A `<Switch>` is an iOS switch on iOS and a Material switch on Android.
+- Shadows, fonts, ripple effects and the keyboard differ.
+- Some props only exist on one platform.
+
+When you need different code per platform, React Native gives you two tools:
+
+```tsx title="Branching on the platform"
+import { Platform } from "react-native";
+
+const top = Platform.OS === "ios" ? 44 : 24;
+
+const shadow = Platform.select({
+  ios: { shadowOpacity: 0.2, shadowRadius: 8 },
+  android: { elevation: 4 },
+});
+```
+
+For larger differences, split a file in two: `Button.ios.tsx` and `Button.android.tsx`. Import it as `./Button`, and the bundler picks the right file for each platform.
+
+[Platform Differences](/docs/native-ui/platform-differences) covers which differences to keep and which to hide.
+
+## How it fits with other pieces
+
+- **[Threads](/docs/foundations/threads)**: your JavaScript runs on its own thread, and only the main thread may change native views.
+- **[The JavaScript Engine](/docs/foundations/javascript-engine)**: Hermes runs the bundle, from bytecode compiled at build time.
+- **[Host Components](/docs/foundations/host-components)**: how each component maps to a native view.
+- **[Layout](/docs/foundations/layout)**: how flexbox styles become sizes and positions.
+- **[Metro and the Bundle](/docs/foundations/metro-and-the-bundle)**: how your files become the JavaScript bundle.
+- **[Native Code in Your App](/docs/foundations/native-code)**: the iOS and Android projects in the native half.
+- **[JSI](/docs/new-architecture/jsi)** and **[Fabric](/docs/new-architecture/fabric)**: how JavaScript reaches native code, and how renders become native views.
+- **[Expo](/docs/expo)**: the framework React Native recommends for building apps, including the tools that build the native half for you.
+
+## Common pitfalls
+
+### Thinking it compiles to native code
+
+React Native doesn't turn your JavaScript into Swift or Kotlin. The views are native, but your logic runs as JavaScript, in Hermes, while the app runs. Hermes compiles it to bytecode at build time, which is a format for the engine, not for the CPU.
+
+So JavaScript performance still matters. A slow function in a render is slow on the phone, the same as anywhere else.
+
+### Expecting web APIs
+
+Code written for the browser often assumes `document`, `window.localStorage`, CSS files or CSS grid. None of them exist in React Native. Before adding a library, check that it supports React Native. Many web libraries render DOM elements and won't work.
+
+### Text outside `<Text>`
+
+A string directly inside a `<View>` throws an error: "Text strings must be rendered within a `<Text>` component." The usual cause isn't a typo but a condition:
+
+```tsx title="Renders a bare 0 when the list is empty"
+<View>
+  {items.length && <Text>{items.length} items</Text>}
+</View>
+```
+
+When `items.length` is `0`, the expression evaluates to `0`, and React Native tries to render it as text inside the `<View>`. Use a real boolean, like `items.length > 0`, or a ternary.
+
+### Expecting identical pixels on both platforms
+
+Real native views mean two sets of views. Test both platforms, and don't fight the differences users expect, like the platform's own switch or back gesture.
+
+### Reloading after adding a native library
+
+A reload swaps the JavaScript bundle. It doesn't rebuild the native binary. A library with native code needs a new development build before it works, or the app fails with an error that a native module can't be found. [Expo Go and Development Builds](/docs/expo/expo-go-and-development-builds) covers when you need one.
+
+<WhatThisReplaced>
+
+The idea hasn't changed since React Native was released in 2015: JavaScript describes the UI, and the platform's own views show it. What changed is how JavaScript talks to native code. It used to send JSON messages across [the bridge](/docs/history/the-bridge), asynchronously. Now it calls native code directly through [JSI](/docs/new-architecture/jsi). [Why It Was Rebuilt](/docs/history/why-it-was-rebuilt) covers the switch.
+
+</WhatThisReplaced>
+
+## Where to go next
+
+- [The Life of a Tap](/docs/foundations): one tap through the whole stack.
+- [Threads](/docs/foundations/threads): which thread runs what, and what blocks what.
+- [Host Components](/docs/foundations/host-components): what a `<View>` turns into.
+- [Native Code in Your App](/docs/foundations/native-code): the native half of your app.
+- [Expo](/docs/expo): the default way to build a React Native app.
+
+## Sources
+
+- [Core Components and Native Components](https://reactnative.dev/docs/intro-react-native-components), React Native docs
+- [Platform-Specific Code](https://reactnative.dev/docs/platform-specific-code), React Native docs
+- [Text](https://reactnative.dev/docs/text), React Native docs
+- [Architecture Overview](https://reactnative.dev/architecture/overview), React Native docs
+- [Introduction to EAS Update](https://docs.expo.dev/eas-update/introduction/), Expo docs
