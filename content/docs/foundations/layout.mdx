@@ -2,3 +2,182 @@
 title: "Layout"
 description: "How flexbox becomes pixel frames on screen."
 ---
+
+Layout is the step that turns your styles into a frame for every view: an x and y position, a width and a height. React Native does it with Yoga, a flexbox engine written in C++. Yoga runs before anything reaches the screen, and the native views receive finished numbers.
+
+The rule to take away: **layout is flexbox, computed by Yoga in C++ before the mount. Native views never lay themselves out. They're placed exactly where Yoga says.**
+
+<HelpsToKnow>
+
+- [Host Components](/docs/foundations/host-components): shadow nodes, and which components become native views.
+- [Threads](/docs/foundations/threads): which thread commits, and which one changes views.
+- [The Life of a Tap](/docs/foundations): render, commit and mount, step by step.
+
+</HelpsToKnow>
+
+## Why it exists
+
+iOS and Android lay out views in different ways. iOS places views by frames or Auto Layout constraints. Android measures and positions views in passes, through containers like `LinearLayout` and `ConstraintLayout`. If React Native used each platform's own system, the same styles would give different screens, and every layout rule would need two implementations.
+
+So React Native brings its own. Yoga implements most of CSS flexbox, the model web developers already know, and both platforms share the same C++ code. A style means the same thing on iOS and Android because the same engine reads it.
+
+Owning layout has a second benefit. Yoga doesn't need native views to do its work, so it can run on a thread other than the main thread, while the main thread keeps the screen responsive.
+
+## How it works
+
+### From styles to frames
+
+When React renders, each host component gets a shadow node in React Native's C++ core. The shadow node holds the component's style props, but no size yet.
+
+<Diagram
+  name="foundations/layout/styles-to-frames"
+  alt="Two swimlanes. On the JavaScript thread, an orange View with flexDirection row and padding 16 goes into a purple shadow tree, which holds styles but no sizes, then into a purple Yoga box that runs flexbox over the whole tree. Yoga has a two-way arrow to a green box, platform text layout, which measures each Text, with the caption: how big is this text at 300 wide? Yoga produces a purple box of frames: x, y, width and height for every node. An arrow goes down to the main thread, where a green Mount box sets each view's frame on a green UIView or ViewGroup."
+/>
+
+During the commit, Yoga walks the shadow tree and resolves every style into a frame. It starts from the root view, which is the size of the screen or the window, and works down: a parent decides how much space each child gets, and children report back how much they need.
+
+The frames are stored on the shadow nodes. The mount then sets each native view's position and size directly, with no layout logic on the native side.
+
+Two details follow from this:
+
+- **Layout runs on the thread that commits**, which is usually the JavaScript thread. A long layout, like a big tree of text appearing at once, delays your JavaScript, not the main thread.
+- **Yoga only redoes what changed.** A node whose style or content changes is marked dirty, along with its ancestors, since their sizes may depend on it. Clean subtrees reuse their last result.
+
+### Text is the one thing Yoga can't measure
+
+Yoga knows boxes, not fonts. It can't tell how wide a string is or where it wraps. When it reaches a `<Text>` or `<TextInput>`, it asks the platform: "how big is this text if it can be at most 300 wide?" iOS and Android measure it with their own text engines and answer.
+
+This has two effects:
+
+- **Text is the expensive part of layout.** Measuring means shaping glyphs and finding line breaks. React Native keeps measured sizes so the same text in the same width isn't measured twice, but new text always costs a measurement.
+- **Text is where platforms differ.** Fonts, line heights and line-breaking rules are each platform's own. The same string can take two lines on Android and one on iOS, and everything below it moves.
+
+### Flexbox, with different defaults
+
+Yoga follows CSS flexbox, but React Native picked different defaults, chosen for app screens that stack top to bottom:
+
+| Property | React Native default | Web default |
+| --- | --- | --- |
+| `flexDirection` | `column` | `row` |
+| `alignContent` | `flex-start` | `stretch` |
+| `flexShrink` | `0` | `1` |
+| `position` | `relative` | `static` |
+| `boxSizing` | `border-box` | `content-box` |
+
+`flexShrink: 0` matters most. Children don't shrink to fit by default. If they're too big for their parent, they overflow it.
+
+`flex` is also different. On the web it's a shorthand for three values. In React Native it takes one number:
+
+```tsx title="flex takes a single number"
+<View style={{ flex: 1 }} />  // grow to fill the remaining space, shrink if needed
+<View style={{ flex: 0 }} />  // size from width and height, don't grow or shrink
+<View style={{ flex: -1 }} /> // size from width and height, shrink to minWidth/minHeight if needed
+```
+
+Two views with `flex: 1` and `flex: 2` split the free space one third to two thirds, as on the web.
+
+### What isn't there
+
+Yoga is flexbox and nothing else. There's no CSS grid, no block or inline flow, no `float`, and no `position: fixed` or `sticky`. `display` takes only `flex`, `none` and `contents`. Every view is a flex container.
+
+Units are simpler too. A number is a length in points on iOS, the same unit as density-independent pixels (dp) on Android, so it looks the same size on any screen. A string like `"50%"` is a percentage of the parent. There's no `em`, `rem`, `vh`, `vw` or `calc()`. For screen-relative sizes, read the window size with `useWindowDimensions()`.
+
+Yoga rounds every frame to the screen's physical pixel grid, so edges stay sharp even when a width is a third of 100.
+
+The supported set has grown with Yoga 3: `gap`, `rowGap` and `columnGap` arrived in React Native 0.71, `position: "static"` in 0.74, and `display: "contents"` and `boxSizing` in 0.77. The last three need the New Architecture. Check the [layout props](https://reactnative.dev/docs/layout-props) for your version.
+
+### Reading layout back
+
+Sometimes your code needs a computed size: to place a tooltip under a button, to size a chart to its container, or to measure a row. There are two ways to get it, and they differ in when your code runs.
+
+<Diagram
+  name="foundations/layout/reading-layout"
+  alt="Two rows of five steps. Top row, onLayout then setState: render with no size yet, commit and layout, then a red step where the first frame is drawn with the tooltip in the wrong place, then onLayout fires, setState and render again, then the next frame where the tooltip jumps into place. Caption: the event arrives after the screen may already show the first result. Bottom row, useLayoutEffect reading the ref: render, commit and layout, useLayoutEffect reads the ref and calls setState, render, commit and layout again, then a green first frame with the tooltip in place. Caption: the effect runs before the screen updates, so the first frame is already right."
+/>
+
+**`onLayout`** is a prop on host components. React Native calls it after Yoga computes a new frame for that view, with the view's `x` and `y` inside its parent and its `width` and `height`. The event is asynchronous: by the time your handler runs, the screen may already show the first result. If you set state from it, the view is drawn once in the wrong place and then jumps.
+
+**`useLayoutEffect` with a ref** runs after the commit but before the screen updates. In the New Architecture, reading layout from a host component's ref is synchronous, so you can measure and set state in the same pass, and the first frame drawn is already correct:
+
+```tsx title="Placing a tooltip before the first frame"
+const anchor = useRef<View>(null);
+const [top, setTop] = useState(0);
+
+useLayoutEffect(() => {
+  const box = anchor.current?.getBoundingClientRect();
+  if (box) setTop(box.bottom + 8);
+}, []);
+```
+
+That correctness costs time. React renders and commits a second time before anything is drawn, so the screen updates later. Use it when a visible jump matters. For a size you only need eventually, like the width of a chart, `onLayout` is fine.
+
+The older `measure()` and `measureInWindow()` methods still work on refs.
+
+## How it fits with other pieces
+
+- **[Host Components](/docs/foundations/host-components)**: Yoga lays out shadow nodes. Views that only do layout are flattened away after layout, so their margins and padding still apply.
+- **[Threads](/docs/foundations/threads)**: layout runs during the commit, usually on the JavaScript thread. Only the mount runs on the main thread.
+- **[Fabric](/docs/new-architecture/fabric)**: the renderer that runs Yoga during the commit and makes synchronous layout reads possible.
+- **[Animations](/docs/rendering-and-state/animations)**: animating `width`, `height` or margins re-runs layout every frame. Animating `transform` and `opacity` doesn't.
+- **[Lists](/docs/rendering-and-state/lists)**: rows that must be measured cost layout work as they scroll in. Known row sizes skip it.
+- **[Platform Differences](/docs/native-ui/platform-differences)**: text measurement is where the same layout differs between iOS and Android.
+
+## Common pitfalls
+
+### A screen with nothing on it
+
+The screen renders, but it's blank, or a view has zero height. A child with `flex: 1` or `height: "100%"` only fills space its parent actually has. If the parent sizes itself from its content, there's nothing to fill: a percentage of an unknown size is ignored, and `flex: 1` grows into zero free space.
+
+Follow the chain up from the empty view. Each ancestor needs a size, usually `flex: 1`, back to the root view, which is the size of the window.
+
+### Text runs off the screen in a row
+
+A label in a `flexDirection: "row"` container doesn't wrap, and its end disappears past the edge. Children don't shrink by default (`flexShrink: 0`), so the text takes all the width it wants. Give the text `flexShrink: 1`, or `flex: 1` if it should also take the free space.
+
+### `flex: 1` inside a `ScrollView` does nothing
+
+A `ScrollView`'s content is as tall as what's in it, so there's no free space for `flex: 1` to fill. To make short content fill the screen and still scroll when it's long, style the content container instead: `contentContainerStyle={{ flexGrow: 1 }}`.
+
+### Something jumps on the first frame
+
+A tooltip, popover or anything placed from a measured size appears in the wrong place for a frame, then moves. The size came from `onLayout`, which arrives after the screen can update. Measure in `useLayoutEffect` from the ref instead.
+
+### Animating size stutters
+
+An animation of `width`, `height`, `top` or `margin` drops frames, especially while JavaScript is busy. Each frame re-runs layout for the view and everything it pushes around, and the native animation driver doesn't support layout props, so it has to run in JavaScript. Animate `transform` (`scale`, `translateX`, `translateY`) and `opacity` instead. They change how a view is drawn without moving anything else, so layout doesn't run.
+
+### The same layout looks different on each platform
+
+A card fits on iOS but its title wraps on Android, or a fixed `height` cuts off text on one platform. Text is measured by each platform's own text engine, with its own fonts and line heights. Let text containers size themselves from their content, instead of giving them fixed heights tuned on one device.
+
+<UnderTheHood title="why a small change can move a lot">
+
+When a node's size changes, Yoga marks it and every ancestor dirty, because a parent's size can depend on its children. On the next commit, Yoga re-lays out each dirty node, and that can move the node's siblings and their children too.
+
+So a status line that grows from one line of text to two re-lays out its row, the row's parent, and so on up to the first ancestor with a fixed size. Every view whose frame changes is updated at the mount. In a long screen, a fixed size high in the tree stops the change from rippling further.
+
+</UnderTheHood>
+
+<WhatThisReplaced>
+
+The old architecture used Yoga too, but each platform kept its own shadow tree in native code, and layout ran on a separate shadow thread. [The Paper Renderer](/docs/history/paper-renderer) covers that pipeline. Reading layout was always asynchronous: `onLayout` or a `measure()` callback, so anything placed from a measured size could jump. Fabric moved the shadow tree and Yoga into shared C++, which made layout reads synchronous and `useLayoutEffect` work as it does on the web.
+
+</WhatThisReplaced>
+
+## Where to go next
+
+- [Fabric](/docs/new-architecture/fabric): the commit in depth, including where layout runs.
+- [Animations](/docs/rendering-and-state/animations): what can animate without running layout.
+- [Platform Differences](/docs/native-ui/platform-differences): text and other places the platforms differ.
+- [Metro and the Bundle](/docs/foundations/metro-and-the-bundle): how your code gets onto the phone in the first place.
+
+## Sources
+
+- [Layout with Flexbox](https://reactnative.dev/docs/flexbox), React Native docs (defaults that differ from the web)
+- [Layout Props](https://reactnative.dev/docs/layout-props), React Native docs (`flex`, `display`, `position`, `boxSizing`, units)
+- [Render, Commit, and Mount](https://reactnative.dev/architecture/render-pipeline), React Native docs (layout during the commit, text measured by the platform)
+- [View](https://reactnative.dev/docs/view) and [LayoutEvent](https://reactnative.dev/docs/layoutevent), React Native docs (`onLayout`)
+- [The New Architecture is Here](https://reactnative.dev/blog/2024/10/23/the-new-architecture-is-here), React Native blog (synchronous layout and `useLayoutEffect`)
+- [React Native 0.74](https://reactnative.dev/blog/2024/04/22/release-0.74), React Native blog (Yoga 3.0, `position: "static"`)
+- [React Native 0.77](https://reactnative.dev/blog/2025/01/21/version-0.77), React Native blog (`display: "contents"`, `boxSizing`)
+- [Yoga](https://www.yogalayout.dev/docs/about-yoga), Yoga docs
