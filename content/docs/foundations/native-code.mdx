@@ -2,3 +2,201 @@
 title: "Native Code in Your App"
 description: "What the iOS and Android projects are, and what a native dependency means."
 ---
+
+Every React Native app is a normal native app. The `ios/` folder is an Xcode project and the `android/` folder is a Gradle project. Each one builds a real app that starts React Native, loads your JavaScript, and runs it. React Native is a library inside that app, not a replacement for it.
+
+The rule to take away: **your app has two halves, a JavaScript bundle and a native binary. JavaScript can only call native code that's already in the binary, so anything that adds native code only reaches users in a new build.**
+
+<HelpsToKnow>
+
+- [What React Native Is](/docs/foundations/what-is-react-native): the JavaScript bundle and the native binary, and why they ship differently.
+- [Metro and the Bundle](/docs/foundations/metro-and-the-bundle): how the JavaScript half is built and delivered.
+
+</HelpsToKnow>
+
+## Why it exists
+
+The phone only runs apps built for it. To get onto an iPhone, your code has to be inside an app that Xcode signed and the App Store accepted. To draw a view, read the camera or show a notification, something has to call Apple's or Google's own APIs, in Swift, Objective-C, Kotlin or Java.
+
+JavaScript can't do any of that alone. So React Native puts it inside a native app: the native side owns the process, the window, the permissions and every platform API, and runs a JavaScript engine for your code. Your components describe what to show. Native code does the showing.
+
+That split is what lets you change JavaScript in seconds, and also what makes some changes need a full build.
+
+## How it works
+
+### Two halves
+
+<Diagram
+  name="foundations/native-code/two-halves"
+  alt="A large green box: the native app, your ios/ or android/ project. Inside it, two green boxes on top: the app entry, AppDelegate and MainActivity, which starts React Native, and native libraries such as camera, maps and storage, written in Swift, Kotlin and C++. Below them a purple box: the React Native runtime, Hermes, JSI and Fabric in C++. Below that an orange box: the JavaScript bundle, your code built by Metro. A note: Info.plist, AndroidManifest.xml, icons and permissions are also native and also in the binary. On the right, a grey store build arrow points at the whole app and replaces everything. A grey over-the-air update arrow points only at the bundle. A note: Metro in development works the same way, new JavaScript on the same binary. Caption: JavaScript can only call native code that is already in the binary. New native code means a new build."
+/>
+
+The **native binary** is everything Xcode or Gradle compiles: the app's entry code, React Native itself (Hermes, JSI, Fabric and the rest, mostly C++), every library with native code, and the app's settings like its name, icon and permissions. It reaches the phone through the store, or through a development build you install.
+
+The **JavaScript bundle** is your code and your JavaScript dependencies, built by Metro. In a release build it's packed inside the binary. But it can also come from somewhere else: from Metro on your computer in development, or from an over-the-air update in production.
+
+That's the whole reason the split matters. The bundle can be swapped without touching the binary. The binary can't be changed without a new build.
+
+### What's in `ios/` and `android/`
+
+Open either folder and you find an ordinary native project. The files you're most likely to touch:
+
+| File | What it does |
+| --- | --- |
+| `ios/Podfile` | Lists the iOS native dependencies, including React Native and every autolinked library. |
+| `ios/<App>/AppDelegate.swift` | The app's entry point. Creates React Native and gives it the root component's name. Newer templates move this into `SceneDelegate.swift`. |
+| `ios/<App>/Info.plist` | App settings: name, version, URL schemes, permission prompts like `NSCameraUsageDescription`. |
+| `ios/<App>.xcworkspace` | The workspace Xcode opens. Use it, not the `.xcodeproj`, so CocoaPods dependencies are included. |
+| `android/settings.gradle` | Includes React Native's Gradle plugin and turns on autolinking. |
+| `android/app/build.gradle` | The app's build settings: package name, version, signing. |
+| `android/app/src/main/.../MainApplication.kt` | Creates React Native once for the app and registers native packages. |
+| `android/app/src/main/.../MainActivity.kt` | The screen that shows React Native, and the root component's name. |
+| `android/app/src/main/AndroidManifest.xml` | App settings: permissions, deep links, activities. |
+
+The entry code does two jobs. It starts React Native with the name of your root component, which must match the name your JavaScript registers. And it says where to find the bundle:
+
+```swift title="Where the iOS app finds the bundle, from the template"
+override func bundleURL() -> URL? {
+  #if DEBUG
+  RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
+  #else
+  Bundle.main.url(forResource: "main", withExtension: "jsbundle")
+  #endif
+}
+```
+
+In a debug build, ask Metro. In a release build, load `main.jsbundle` from inside the app. Android makes the same choice in React Native's Gradle plugin and its default host.
+
+### What a native dependency is
+
+Most packages you install are JavaScript only. A date library or a state manager is plain JavaScript: Metro bundles it, and it works the moment you save.
+
+A **native dependency** ships native code next to its JavaScript. Look inside it in `node_modules` and you'll find an `ios/` folder with a `.podspec`, an `android/` folder with a `build.gradle`, or both. Its JavaScript is a thin layer that calls that native code through a [TurboModule](/docs/new-architecture/turbomodules) or renders a native view through [Fabric](/docs/new-architecture/fabric).
+
+The JavaScript half goes into the bundle, like any other package. The native half has to be compiled into the binary.
+
+### Autolinking
+
+You don't add a native dependency to Xcode or Gradle by hand. **Autolinking** does it: at build time, it reads your app's `package.json`, finds each dependency that has native code, and adds it to the native project.
+
+<Diagram
+  name="foundations/native-code/adding-a-native-package"
+  alt="A grey box, npm install some-camera, points at a dashed box for node_modules/some-camera holding three parts: orange JavaScript, a green ios folder with Swift and a podspec, and a green android folder with Kotlin and build.gradle. An arrow leads to a grey autolinking box that reads package.json and finds the native folders. From there, two swimlanes. iOS: the Podfile's use_native_modules!, then pod install. Android: settings.gradle's autolinkLibrariesFromCommand, then Gradle generates PackageList. Both lead to a green box: a new native build, with the library inside the binary. A red box below: skip the build, and the new JavaScript runs on the old binary, with the error 'some-camera' could not be found. Caption: Metro ships the JavaScript half in seconds. The native half only arrives with a build."
+/>
+
+- **On iOS**, the Podfile calls `use_native_modules!`, which adds each library as a CocoaPods dependency. This only runs when you run `pod install`, so adding or removing a native library needs `cd ios && pod install` before the next build.
+- **On Android**, `settings.gradle` calls `autolinkLibrariesFromCommand()`, and the app's Gradle build generates a `PackageList` class that registers every library. Gradle does this on each build, with no extra step.
+- **With Expo**, Expo's own autolinking links both Expo modules and community React Native libraries, and `npx expo run:ios` or `npx expo run:android` handles the native install for you.
+
+A library can turn itself off for one platform, or you can, in `react-native.config.js`:
+
+```js title="react-native.config.js: don't link a package on Android"
+module.exports = {
+  dependencies: {
+    "some-ios-only-package": {
+      platforms: { android: null },
+    },
+  },
+};
+```
+
+### Why native changes need a new build
+
+Everything in the binary is fixed when it's built. A development build, a TestFlight build and a store release all carry exactly the native code they were compiled with, and nothing can add more later.
+
+So two kinds of change travel differently:
+
+- **JavaScript changes** reach the app without a build: from Metro in development, or as an [over-the-air update](/docs/expo/eas-update) in production.
+- **Native changes** need a new build: adding, removing or upgrading a library with native code, changing a permission in `Info.plist` or `AndroidManifest.xml`, changing the app icon or name, or upgrading React Native itself.
+
+When new JavaScript runs on an old binary, it calls native code that isn't there. For a TurboModule, it fails as soon as the module is looked up:
+
+```txt title="New JavaScript, old binary"
+TurboModuleRegistry.getEnforcing(...): 'SomeCamera' could not be found.
+Verify that a module by this name is registered in the native binary.
+```
+
+This is also why [Expo Go](/docs/expo/expo-go-and-development-builds) can't run every app. Expo Go is one prebuilt binary with a fixed set of native libraries. Your JavaScript runs on it, but a library that isn't in it can't be added. A **development build** is your own version of that app, built with your native dependencies.
+
+EAS Update tracks this with a **runtime version**: a label on each build that says which native code it has. An update only goes to builds with a matching runtime version, so a bundle that needs a new library doesn't reach a binary without it.
+
+### Your own native code
+
+Sometimes no library does what you need, and you write the native code yourself. Three ways, each covered on its own page:
+
+- **[TurboModules](/docs/new-architecture/turbomodules)**: native functions JavaScript can call, like reading a sensor.
+- **[Fabric native components](/docs/new-architecture/fabric)**: native views you render from JSX.
+- **[The Expo Modules API](/docs/expo/expo-modules-api)**: Expo's way to write both, in Swift and Kotlin.
+
+All three use [Codegen](/docs/new-architecture/codegen) or a similar step to connect a typed JavaScript interface to the native code. And all three are native code, so they follow the same rule: they reach users only in a new build.
+
+### With Expo: generated native folders
+
+Expo projects usually don't keep `ios/` and `android/` in git. With [Continuous Native Generation](/docs/expo/continuous-native-generation), `npx expo prebuild` generates them from your app config, a template for your Expo SDK version, your dependencies, and [config plugins](/docs/expo/config-plugins). New Expo projects add both folders to `.gitignore`.
+
+The native project still exists and still builds the same way. It's just output instead of source. To change native settings, you change the app config or add a config plugin, and generate again.
+
+## How it fits with other pieces
+
+- **[What React Native Is](/docs/foundations/what-is-react-native)**: why the app splits into a bundle and a binary at all.
+- **[Metro and the Bundle](/docs/foundations/metro-and-the-bundle)**: how the JavaScript half is built and loaded.
+- **[TurboModules](/docs/new-architecture/turbomodules)** and **[Fabric](/docs/new-architecture/fabric)**: how JavaScript reaches native functions and native views.
+- **[Continuous Native Generation](/docs/expo/continuous-native-generation)**: generating the native folders instead of keeping them.
+- **[EAS Build and Submit](/docs/expo/eas-build-and-submit)**: building the native binary on a server.
+- **[EAS Update](/docs/expo/eas-update)**: shipping the JavaScript half without a build.
+- **[Upgrading](/docs/shipping/upgrading)**: why React Native upgrades touch the native projects.
+
+## Common pitfalls
+
+### "could not be found" after installing a library
+
+You install a library, save, and the app shows a red screen saying the module "could not be found", or that it "Cannot find native module". Metro sent the new JavaScript, but the app on your phone is still the old binary. Rebuild it: `npx expo run:ios`, `npx react-native run-ios`, or a new development build. On iOS without Expo, run `pod install` first.
+
+### It works in Expo Go, then a library doesn't
+
+The app ran fine in Expo Go until you added a library, and now it fails. The library's native code isn't in Expo Go. Switch to a [development build](/docs/expo/expo-go-and-development-builds), which you build with your own dependencies.
+
+### An over-the-air update crashes installed apps
+
+An update that worked in development crashes users' apps. It probably depended on native code those builds don't have: a new library, or a newer version of one. Native changes need a new store build. Use a runtime version policy that changes when native code changes, such as `fingerprint`, so an update only reaches builds that can run it.
+
+### Hand edits disappear
+
+You changed `Info.plist` or `AndroidManifest.xml` in an Expo project, and the change is gone after the next build. Under Continuous Native Generation, `npx expo prebuild --clean` and cloud builds generate the folders again from your app config. Make the change in the app config or a config plugin instead.
+
+### A permission prompt crashes the app on iOS
+
+The app crashes the moment it asks for the camera, photos or location. iOS requires a usage description in `Info.plist`, like `NSCameraUsageDescription`, for each protected API, and stops the app if it's missing. Add it, and rebuild: `Info.plist` is part of the binary. Many libraries' config plugins add it for you in Expo projects.
+
+### Upgrading a library breaks the build
+
+A library upgrade bumps its native code too, and the build fails or crashes at launch. Native libraries depend on specific React Native versions. Check the library's supported versions before upgrading either one, and rebuild from clean (`pod install` again on iOS) after the change.
+
+<UnderTheHood title="why the error shows up at import, not at the call">
+
+Most libraries look up their TurboModule as soon as their JavaScript loads, with `TurboModuleRegistry.getEnforcing("SomeCamera")`. The lookup asks the native side for a module with that name, and throws if the binary doesn't have one.
+
+So a missing native module usually fails when the file that imports the library first runs, not when you call one of its functions. With inline requires, that's when the screen using it first renders. A library that should work without its native code, like one with a web or Expo Go fallback, uses `TurboModuleRegistry.get` instead, which returns `null` rather than throwing.
+
+</UnderTheHood>
+
+## When you can ignore this
+
+If you use Expo with Continuous Native Generation and only install libraries that support it, you rarely open `ios/` or `android/`. Expo generates them, links your libraries and builds them. Come back to this page when you add a library with native code, when a module "could not be found", when you plan an over-the-air update, or when you need to write native code yourself.
+
+## Where to go next
+
+- [TurboModules](/docs/new-architecture/turbomodules): how JavaScript calls native code.
+- [Continuous Native Generation](/docs/expo/continuous-native-generation): letting Expo generate the native projects.
+- [Expo Go and Development Builds](/docs/expo/expo-go-and-development-builds): building an app with your own native code.
+
+## Sources
+
+- [Autolinking](https://github.com/react-native-community/cli/blob/main/docs/autolinking.md), React Native Community CLI docs (`use_native_modules!`, `autolinkLibrariesWithApp`, `pod install`, `react-native.config.js`)
+- [React Native template](https://github.com/react-native-community/template/tree/main/template), React Native Community (`AppDelegate.swift`, `SceneDelegate.swift`, `MainApplication.kt`, `MainActivity.kt`, `Podfile`, `settings.gradle`)
+- [TurboModuleRegistry.js](https://github.com/facebook/react-native/blob/main/packages/react-native/Libraries/TurboModule/TurboModuleRegistry.js), React Native source (the "could not be found" error)
+- [Autolinking](https://docs.expo.dev/modules/autolinking/), Expo docs (links Expo modules and React Native libraries)
+- [Continuous Native Generation](https://docs.expo.dev/workflow/continuous-native-generation/), Expo docs (`prebuild`, `--clean`, `.gitignore`)
+- [Using libraries](https://docs.expo.dev/workflow/using-libraries/), Expo docs (libraries that need a development build)
+- [Introduction to development builds](https://docs.expo.dev/develop/development-builds/introduction/), Expo docs
+- [Runtime versions](https://docs.expo.dev/eas-update/runtime-versions/), Expo docs (matching updates to native code, `fingerprint`)
